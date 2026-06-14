@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for authenticating users and routing them to their respective dashboards
     public partial class Login : Form
     {
         public Login()
@@ -18,6 +20,7 @@ namespace ECS_GUI
             string inputID = txtEmployeeID.Text.Trim();
             string inputBadge = txtBadgeNumber.Text.Trim();
 
+            // Hardcoded administrator bypass for emergency access
             if (inputID.Equals("9999") && inputBadge.Equals("B999", StringComparison.OrdinalIgnoreCase))
             {
                 MessageBox.Show("Success! Welcome Admin.");
@@ -27,29 +30,42 @@ namespace ECS_GUI
             }
             else
             {
-                List<Employee> employees = CentralData.GetEmployeesFromDatabase();
-                Employee loggedInUser = employees.FirstOrDefault(emp => emp.EmployeeID == inputID && emp.BadgeNumber.Equals(inputBadge, StringComparison.OrdinalIgnoreCase));
-
-                if (loggedInUser != null)
+                try
                 {
-                    if (loggedInUser.Role != null && loggedInUser.Role.Trim().Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                    // Fetch all employees to validate credentials against the database
+                    List<Employee> employees = CentralData.GetEmployeesFromDatabase();
+                    Employee loggedInUser = employees.FirstOrDefault(emp =>
+                        emp.EmployeeID == inputID &&
+                        emp.BadgeNumber.Equals(inputBadge, StringComparison.OrdinalIgnoreCase));
+
+                    if (loggedInUser != null)
                     {
-                        MessageBox.Show($"Success! Welcome {loggedInUser.FullName}.");
-                        MainMenuForm mainMenu = new MainMenuForm();
-                        mainMenu.Show();
-                        this.Hide();
+                        // Role-based routing: Admins go to MainMenu, standard employees to the Dashboard
+                        if (loggedInUser.Role != null && loggedInUser.Role.Trim().Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            MessageBox.Show($"Success! Welcome {loggedInUser.FullName}.");
+                            MainMenuForm mainMenu = new MainMenuForm();
+                            mainMenu.Show();
+                            this.Hide();
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Success! Welcome back {loggedInUser.FullName}.");
+                            EmployeeDashboardForm employeeDashboard = new EmployeeDashboardForm(loggedInUser.EmployeeID);
+                            employeeDashboard.Show();
+                            this.Hide();
+                        }
                     }
                     else
                     {
-                        MessageBox.Show($"Success! Welcome back {loggedInUser.FullName}.");
-                        EmployeeDashboardForm employeeDashboard = new EmployeeDashboardForm(loggedInUser.EmployeeID);
-                        employeeDashboard.Show();
-                        this.Hide();
+                        // Authentication failure handling
+                        MessageBox.Show("Invalid Employee ID or Badge Number. Please try again.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Invalid Employee ID or Badge Number. Please try again.");
+                    // Handle potential database connectivity issues during login
+                    MessageBox.Show("Database Error: " + ex.Message);
                 }
             }
         }

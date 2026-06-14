@@ -127,7 +127,7 @@
             Controls.Add(btnViewRoster);
             Controls.Add(btnAddEmployee);
             Name = "EmployeeMenuForm";
-            Text = "EmployeeMenuForm";
+            Text = "Equipment Checkout System";
             Load += EmployeeMenuForm_Load;
             ResumeLayout(false);
             PerformLayout();

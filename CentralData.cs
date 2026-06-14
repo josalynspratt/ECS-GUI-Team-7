@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
+using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Model classes representing the core business entities
     public class AuditLog
     {
         public string LogID { get; set; }
@@ -45,15 +48,19 @@ namespace ECS_GUI
         public string Location { get; set; }
     }
 
+    // Static data access layer to centralize database interactions
     public static class CentralData
     {
-        private static string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
+        // Connection string configured to the local database file path
+        private static string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=" + Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ECSDatabase.mdf") + ";Integrated Security=True";
 
+        // Global lists for in-memory tracking of requests and logs
         public static List<CheckoutRequest> RequestList { get; set; } = new List<CheckoutRequest>();
         public static List<AuditLog> AuditLogList { get; set; } = new List<AuditLog>();
 
-        private static int nextIdSequence = 101;
+        private static int nextIdSequence = 101; // Sequence tracker for generated IDs
 
+        // Retrieves all employee records from the SQL database
         public static List<Employee> GetEmployeesFromDatabase()
         {
             List<Employee> list = new List<Employee>();
@@ -62,25 +69,34 @@ namespace ECS_GUI
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query, conn);
-                conn.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                try
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        list.Add(new Employee
+                        while (reader.Read())
                         {
-                            EmployeeID = reader["EmployeeID"].ToString(),
-                            FullName = reader["FullName"].ToString(),
-                            BadgeNumber = reader["BadgeNumber"].ToString(),
-                            Role = reader["Role"].ToString(),
-                            Skills = reader["Skills"].ToString()
-                        });
+                            list.Add(new Employee
+                            {
+                                EmployeeID = reader["EmployeeID"].ToString(),
+                                FullName = reader["FullName"].ToString(),
+                                BadgeNumber = reader["BadgeNumber"].ToString(),
+                                Role = reader["Role"].ToString(),
+                                Skills = reader["Skills"].ToString()
+                            });
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error loading employees: " + ex.Message);
+                    throw;
                 }
             }
             return list;
         }
 
+        // Retrieves all equipment inventory records from the SQL database
         public static List<EquipmentItem> GetEquipmentFromDatabase()
         {
             List<EquipmentItem> list = new List<EquipmentItem>();
@@ -89,26 +105,35 @@ namespace ECS_GUI
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query, conn);
-                conn.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                try
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        list.Add(new EquipmentItem
+                        while (reader.Read())
                         {
-                            Id = reader["EquipmentID"].ToString(),
-                            Name = reader["EquipmentName"].ToString(),
-                            Model = reader["Model"].ToString(),
-                            RequiredSkill = reader["RequiredSkill"].ToString(),
-                            Status = reader["Status"].ToString(),
-                            Location = reader["Location"].ToString()
-                        });
+                            list.Add(new EquipmentItem
+                            {
+                                Id = reader["EquipmentID"].ToString(),
+                                Name = reader["EquipmentName"].ToString(),
+                                Model = reader["Model"].ToString(),
+                                RequiredSkill = reader["RequiredSkill"].ToString(),
+                                Status = reader["Status"].ToString(),
+                                Location = reader["Location"].ToString()
+                            });
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error loading equipment: " + ex.Message);
+                    throw;
                 }
             }
             return list;
         }
 
+        // Fetches available skill categories from the database for UI population
         public static List<string> GetSkillsFromDatabase()
         {
             List<string> list = new List<string>();
@@ -117,18 +142,27 @@ namespace ECS_GUI
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query, conn);
-                conn.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                try
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        list.Add(reader["SkillName"].ToString());
+                        while (reader.Read())
+                        {
+                            list.Add(reader["SkillName"].ToString());
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error loading skills: " + ex.Message);
+                    throw;
                 }
             }
             return list;
         }
 
+        // Authenticates user via database lookup to ensure authorized access
         public static Employee ValidateLogin(string fullName, string badgeNumber)
         {
             string query = "SELECT EmployeeID, FullName, BadgeNumber, Role, Skills FROM Employees WHERE FullName = @Name AND BadgeNumber = @Badge";
@@ -136,28 +170,38 @@ namespace ECS_GUI
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query, conn);
+                // Use parameters to prevent SQL injection during authentication
                 cmd.Parameters.AddWithValue("@Name", fullName);
                 cmd.Parameters.AddWithValue("@Badge", badgeNumber);
 
-                conn.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                try
                 {
-                    if (reader.Read())
+                    conn.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        return new Employee
+                        if (reader.Read())
                         {
-                            EmployeeID = reader["EmployeeID"].ToString(),
-                            FullName = reader["FullName"].ToString(),
-                            BadgeNumber = reader["BadgeNumber"].ToString(),
-                            Role = reader["Role"].ToString(),
-                            Skills = reader["Skills"].ToString()
-                        };
+                            return new Employee
+                            {
+                                EmployeeID = reader["EmployeeID"].ToString(),
+                                FullName = reader["FullName"].ToString(),
+                                BadgeNumber = reader["BadgeNumber"].ToString(),
+                                Role = reader["Role"].ToString(),
+                                Skills = reader["Skills"].ToString()
+                            };
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error during login: " + ex.Message);
+                    throw;
+                }
             }
-            return null;
+            return null; // Return null if authentication fails
         }
 
+        // Incremental ID generator for new checkout requests
         public static string GenerateNextRequestID()
         {
             string newId = $"R-{nextIdSequence}";

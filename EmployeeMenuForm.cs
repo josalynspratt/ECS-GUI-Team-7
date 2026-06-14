@@ -3,51 +3,37 @@ using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for administrative tasks related to managing employee profiles
     public partial class EmployeeMenuForm : Form
     {
+        // Constructor for the administrative employee management menu
         public EmployeeMenuForm()
         {
             InitializeComponent();
-            this.Text = "ECS - Employee Management";
+            this.Text = "Equipment Checkout System - Admin: Employee Management";
         }
 
+        // Navigates to the form for adding a new employee to the system
         private void btnAddEmployee_Click(object sender, EventArgs e)
         {
-            AddEmployeeForm addEmpForm = new AddEmployeeForm();
-            addEmpForm.Show();
-            this.Close();
+            AddEmployeeForm addForm = new AddEmployeeForm();
+            addForm.Show();
         }
 
+        // Navigates to the form for updating existing employee profiles
         private void btnEditEmployee_Click(object sender, EventArgs e)
         {
-            EditEmployeeForm editEmpForm = new EditEmployeeForm();
-            editEmpForm.Show();
+            EditEmployeeForm editForm = new EditEmployeeForm();
+            editForm.Show();
             this.Close();
         }
 
-        private void btnRemoveEmployee_Click(object sender, EventArgs e)
-        {
-            RemoveEmployeeForm removeEmpForm = new RemoveEmployeeForm();
-            removeEmpForm.Show();
-            this.Close();
-        }
-
-        private void btnViewRoster_Click(object sender, EventArgs e)
-        {
-            SearchEmployeesForm searchForm = new SearchEmployeesForm();
-            searchForm.Show();
-            this.Close();
-        }
-
+        // Returns the administrator to the main system menu
         private void btnBack_Click(object sender, EventArgs e)
         {
             MainMenuForm mainMenu = new MainMenuForm();
             mainMenu.Show();
             this.Close();
-        }
-
-        private void EmployeeMenuForm_Load(object sender, EventArgs e)
-        {
         }
     }
 }

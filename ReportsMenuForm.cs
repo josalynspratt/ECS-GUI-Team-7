@@ -8,6 +8,7 @@ using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for generating printable HTML reports for inventory and personnel
     public partial class ReportsMenuForm : Form
     {
         public ReportsMenuForm()
@@ -16,12 +17,14 @@ namespace ECS_GUI
             this.Text = "Equipment Checkout System - Reports Menu";
         }
 
+        // Centralized method to build, save, and open an HTML-based report
         private void GenerateHtmlReport(string reportTitle, string htmlTableRows, string tableHeaders)
         {
             try
             {
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
+                // Construct HTML structure with embedded CSS for styling and printing support
                 StringBuilder html = new StringBuilder();
                 html.AppendLine("<!DOCTYPE html><html><head><style>");
                 html.AppendLine("body { font-family: Arial, sans-serif; margin: 30px; color: #333; }");
@@ -31,7 +34,7 @@ namespace ECS_GUI
                 html.AppendLine("th { background-color: #34495E; color: white; padding: 10px; text-align: left; }");
                 html.AppendLine("td { padding: 10px; border-bottom: 1px solid #BDC3C7; }");
                 html.AppendLine("tr:nth-child(even) { background-color: #F8F9F9; }");
-                html.AppendLine("@media print { .no-print { display: none; } }");
+                html.AppendLine("@media print { .no-print { display: none; } }"); // Hide print button on hard copy
                 html.AppendLine("</style></head><body>");
                 html.AppendLine($"<h2>{reportTitle}</h2>");
                 html.AppendLine($"<div class='timestamp'>Generated on: {timestamp}</div>");
@@ -42,6 +45,7 @@ namespace ECS_GUI
                 html.AppendLine("<br/><button class='no-print' onclick='window.print()'>Print Report</button>");
                 html.AppendLine("</body></html>");
 
+                // Ensure the Reports directory exists, then create the file
                 string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Reports");
                 if (!Directory.Exists(folderPath))
                 {
@@ -52,6 +56,7 @@ namespace ECS_GUI
                 string filePath = Path.Combine(folderPath, fileName);
                 File.WriteAllText(filePath, html.ToString());
 
+                // Launch the system default browser to display the generated report
                 Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
             }
             catch (Exception ex)
@@ -60,6 +65,7 @@ namespace ECS_GUI
             }
         }
 
+        // Collects inventory data and formats it for the Master Equipment Report
         private void btnEquipmentReport_Click(object sender, EventArgs e)
         {
             List<EquipmentItem> items = CentralData.GetEquipmentFromDatabase();
@@ -75,6 +81,7 @@ namespace ECS_GUI
             GenerateHtmlReport("Master Equipment Asset Report", rows.ToString(), headers);
         }
 
+        // Collects personnel data and formats it for the Master Employee Roster Report
         private void btnEmployeeReport_Click(object sender, EventArgs e)
         {
             List<Employee> employees = CentralData.GetEmployeesFromDatabase();
@@ -90,6 +97,7 @@ namespace ECS_GUI
             GenerateHtmlReport("Master Employee Roster Report", rows.ToString(), headers);
         }
 
+        // Returns the user to the Main Menu
         private void btnBack_Click(object sender, EventArgs e)
         {
             MainMenuForm mainMenu = new MainMenuForm();

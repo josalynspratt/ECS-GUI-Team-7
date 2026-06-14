@@ -9,10 +9,11 @@ using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for displaying real-time inventory status and location tracking
     public partial class TrackEquipmentForm : Form
     {
-        private DataTable equipmentTable;
-        private string userRole;
+        private DataTable equipmentTable; // Underlying data source for grid display
+        private string userRole;           // Tracks if user is Admin or Employee for navigation
 
         public TrackEquipmentForm(string role = "Admin")
         {
@@ -23,6 +24,7 @@ namespace ECS_GUI
             InitializeFilterOptions();
         }
 
+        // Fetches data from central storage and binds it to the DataGridView
         private void InitializeEquipmentData()
         {
             equipmentTable = new DataTable();
@@ -45,6 +47,7 @@ namespace ECS_GUI
             dgvActiveCheckouts.Columns[equipmentTable.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         }
 
+        // Configures filter dropdown for status-based inventory views
         private void InitializeFilterOptions()
         {
             cmbStatusFilter.Items.Clear();
@@ -55,20 +58,22 @@ namespace ECS_GUI
             cmbStatusFilter.SelectedIndex = 0;
         }
 
+        // Updates grid view dynamically when the status filter is changed
         private void cmbStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
             string selectedStatus = cmbStatusFilter.SelectedItem.ToString();
 
             if (selectedStatus == "All")
             {
-                equipmentTable.DefaultView.RowFilter = "";
+                equipmentTable.DefaultView.RowFilter = ""; // Remove filter
             }
             else
             {
-                equipmentTable.DefaultView.RowFilter = $"Status = '{selectedStatus}'";
+                equipmentTable.DefaultView.RowFilter = $"Status = '{selectedStatus}'"; // Filter by selected status
             }
         }
 
+        // Redirects user back to their respective menu based on account privileges
         private void btnBackToMenu_Click(object sender, EventArgs e)
         {
             if (!userRole.Equals("Employee", StringComparison.OrdinalIgnoreCase))

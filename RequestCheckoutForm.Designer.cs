@@ -173,7 +173,7 @@
             Controls.Add(cmbEquipmentList);
             Controls.Add(lblEmployeeIDText);
             Name = "RequestCheckoutForm";
-            Text = "Request Checkout";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

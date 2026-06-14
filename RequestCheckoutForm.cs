@@ -1,128 +1,108 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
+using System.IO;
+using System.Diagnostics;
+using System.Text;
 using System.Linq;
+using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace ECS_GUI
 {
-    public partial class RequestCheckoutForm : Form
+    // Form responsible for generating printable HTML reports for inventory and personnel
+    public partial class ReportsMenuForm : Form
     {
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
-
-        public RequestCheckoutForm(string employeeID)
+        public ReportsMenuForm()
         {
             InitializeComponent();
-
-            if (string.IsNullOrEmpty(employeeID) || employeeID.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
-            {
-                List<Employee> employees = CentralData.GetEmployeesFromDatabase();
-                var defaultEmp = employees.FirstOrDefault();
-                txtEmployeeID.Text = defaultEmp != null ? defaultEmp.EmployeeID : "10020";
-            }
-            else
-            {
-                txtEmployeeID.Text = employeeID;
-            }
-
-            this.Text = "Equipment Checkout System - Request Checkout";
-            PopulateEquipmentDropdown();
+            this.Text = "Equipment Checkout System - Reports Menu";
         }
 
-        private void PopulateEquipmentDropdown()
+        // Centralized method to build, save, and open an HTML-based report
+        private void GenerateHtmlReport(string reportTitle, string htmlTableRows, string tableHeaders)
         {
-            cmbEquipmentList.Items.Clear();
-            List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
-
-            foreach (var item in equipment)
+            try
             {
-                if (item.Status == "Available")
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                // Construct HTML structure with embedded CSS for styling and printing support
+                StringBuilder html = new StringBuilder();
+                html.AppendLine("<!DOCTYPE html><html><head><style>");
+                html.AppendLine("body { font-family: Arial, sans-serif; margin: 30px; color: #333; }");
+                html.AppendLine("h2 { color: #2C3E50; margin-bottom: 5px; }");
+                html.AppendLine(".timestamp { color: #7F8C8D; font-style: italic; margin-bottom: 20px; }");
+                html.AppendLine("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+                html.AppendLine("th { background-color: #34495E; color: white; padding: 10px; text-align: left; }");
+                html.AppendLine("td { padding: 10px; border-bottom: 1px solid #BDC3C7; }");
+                html.AppendLine("tr:nth-child(even) { background-color: #F8F9F9; }");
+                html.AppendLine("@media print { .no-print { display: none; } }"); // Hide print button on hard copy
+                html.AppendLine("</style></head><body>");
+                html.AppendLine($"<h2>{reportTitle}</h2>");
+                html.AppendLine($"<div class='timestamp'>Generated on: {timestamp}</div>");
+                html.AppendLine("<table>");
+                html.AppendLine($"<tr>{tableHeaders}</tr>");
+                html.AppendLine(htmlTableRows);
+                html.AppendLine("</table>");
+                html.AppendLine("<br/><button class='no-print' onclick='window.print()'>Print Report</button>");
+                html.AppendLine("</body></html>");
+
+                // Ensure the Reports directory exists, then create the file
+                string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Reports");
+                if (!Directory.Exists(folderPath))
                 {
-                    cmbEquipmentList.Items.Add(item.Name);
+                    Directory.CreateDirectory(folderPath);
                 }
-            }
 
-            if (cmbEquipmentList.Items.Count > 0)
+                string fileName = $"{reportTitle.Replace(" ", "")}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+                string filePath = Path.Combine(folderPath, fileName);
+                File.WriteAllText(filePath, html.ToString());
+
+                // Launch the system default browser to display the generated report
+                Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
             {
-                cmbEquipmentList.SelectedIndex = 0;
+                MessageBox.Show($"Error generating report file: {ex.Message}", "Report Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void btnSubmitRequest_Click(object sender, EventArgs e)
+        // Collects inventory data and formats it for the Master Equipment Report
+        private void btnEquipmentReport_Click(object sender, EventArgs e)
         {
-            string currentEmpID = txtEmployeeID.Text.Trim();
-            string selectedEquipName = cmbEquipmentList.SelectedItem?.ToString();
+            List<EquipmentItem> items = CentralData.GetEquipmentFromDatabase();
+            StringBuilder rows = new StringBuilder();
 
+            string headers = "<th>ID</th><th>Name</th><th>Model</th><th>Required Skill</th><th>Status</th><th>Location</th>";
+
+            foreach (var item in items)
+            {
+                rows.AppendLine($"<tr><td>{item.Id}</td><td>{item.Name}</td><td>{item.Model}</td><td>{item.RequiredSkill}</td><td>{item.Status}</td><td>{item.Location}</td></tr>");
+            }
+
+            GenerateHtmlReport("Master Equipment Asset Report", rows.ToString(), headers);
+        }
+
+        // Collects personnel data and formats it for the Master Employee Roster Report
+        private void btnEmployeeReport_Click(object sender, EventArgs e)
+        {
             List<Employee> employees = CentralData.GetEmployeesFromDatabase();
-            List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
+            StringBuilder rows = new StringBuilder();
 
-            var currentEmployee = employees.FirstOrDefault(emp => emp.EmployeeID == currentEmpID);
-            var targetEquipment = equipment.FirstOrDefault(eq => eq.Name == selectedEquipName);
+            string headers = "<th>ID</th><th>Full Name</th><th>Badge Number</th><th>Role</th><th>Skills</th>";
 
-            if (currentEmployee == null || targetEquipment == null)
+            foreach (var emp in employees)
             {
-                MessageBox.Show("Invalid Employee ID or Equipment selection.");
-                return;
+                rows.AppendLine($"<tr><td>{emp.EmployeeID}</td><td>{emp.FullName}</td><td>{emp.BadgeNumber}</td><td>{emp.Role}</td><td>{emp.Skills}</td></tr>");
             }
 
-            if (!string.IsNullOrEmpty(targetEquipment.RequiredSkill) && !currentEmployee.Skills.Contains(targetEquipment.RequiredSkill))
-            {
-                MessageBox.Show($"Access Denied! This equipment requires '{targetEquipment.RequiredSkill}' clearance, which is not assigned to your profile.",
-                                "Clearance Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            string projectName = txtProjectName.Text.Trim();
-            string checkoutDate = DateTime.Now.ToString("MM/dd/yyyy");
-            string expectedReturn = DateTime.Now.AddDays(7).ToString("MM/dd/yyyy");
-
-            if (string.IsNullOrEmpty(projectName))
-            {
-                MessageBox.Show("Please enter a project name.");
-                return;
-            }
-
-            CheckoutRequest newRequest = new CheckoutRequest
-            {
-                RequestID = CentralData.GenerateNextRequestID(),
-                EmployeeID = currentEmployee.EmployeeID,
-                EmployeeName = currentEmployee.FullName,
-                EquipmentID = targetEquipment.Id,
-                EquipmentName = targetEquipment.Name,
-                CheckoutDate = checkoutDate,
-                ProjectName = projectName,
-                Status = "Pending",
-                ExpectedReturnDate = expectedReturn,
-                ActualReturnDate = "N/A"
-            };
-
-            string query = "UPDATE Equipment SET Status = 'Pending' WHERE EquipmentID = @ID";
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@ID", targetEquipment.Id);
-
-                conn.Open();
-                cmd.ExecuteNonQuery();
-            }
-
-            CentralData.RequestList.Add(newRequest);
-
-            MessageBox.Show($"Success! Your request {newRequest.RequestID} has been submitted for approval.");
-            ReturnToEmployeeDashboard();
+            GenerateHtmlReport("Master Employee Roster Report", rows.ToString(), headers);
         }
 
-        private void ReturnToEmployeeDashboard()
+        // Returns the user to the Main Menu
+        private void btnBack_Click(object sender, EventArgs e)
         {
-            EmployeeDashboardForm employeeDashboard = new EmployeeDashboardForm(txtEmployeeID.Text.Trim());
-            employeeDashboard.Show();
+            MainMenuForm mainMenu = new MainMenuForm();
+            mainMenu.Show();
             this.Close();
-        }
-
-        private void btnCancel_Click(object sender, EventArgs e)
-        {
-            ReturnToEmployeeDashboard();
         }
     }
 }

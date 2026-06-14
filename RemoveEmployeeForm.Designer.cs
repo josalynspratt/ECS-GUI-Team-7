@@ -126,7 +126,7 @@
             Controls.Add(cmbSelectEmployee);
             Controls.Add(lblRemoveEmployee);
             Name = "RemoveEmployeeForm";
-            Text = "RemoveEmployeeForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

@@ -124,7 +124,7 @@
             Controls.Add(btnCheckIn);
             Controls.Add(lblSelectEquipment);
             Name = "CheckInEquipmentForm";
-            Text = "CheckInEquipmentForm";
+            Text = "Equipment Checkout System";
             Load += CheckInEquipmentForm_Load;
             ResumeLayout(false);
             PerformLayout();

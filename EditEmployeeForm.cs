@@ -9,15 +9,18 @@ namespace ECS_GUI
     public partial class EditEmployeeForm : Form
     {
         private Employee selectedEmployee;
+        // Database connection string for the local application database
         private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
 
         public EditEmployeeForm()
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Edit Employee Profile";
+            // Initialize dropdowns and skill list on startup
             PopulateFormOptions();
         }
 
+        // Sets up roles and skills, and loads the list of existing employees
         private void PopulateFormOptions()
         {
             cmbRole.Items.Clear();
@@ -35,6 +38,7 @@ namespace ECS_GUI
             PopulateEmployeeDropdown();
         }
 
+        // Refresh list of employees available for editing
         private void PopulateEmployeeDropdown()
         {
             cmbSelectEmployee.Items.Clear();
@@ -47,6 +51,7 @@ namespace ECS_GUI
 
         private void btnSaveUpdates_Click(object sender, EventArgs e)
         {
+            // Validate that an employee is actually selected
             if (selectedEmployee == null)
             {
                 MessageBox.Show("Please select an employee profile to edit first.", "Selection Required");
@@ -56,14 +61,16 @@ namespace ECS_GUI
             string updatedName = txtEmployeeName.Text.Trim();
             string updatedBadge = txtBadgeNumber.Text.Trim();
             string updatedRole = cmbRole.SelectedItem?.ToString();
-            string updatedUsername = updatedName.Replace(" ", "").ToLower();
+            string updatedUsername = updatedName.Replace(" ", "").ToLower(); // Auto-generate username from name
 
+            // Input validation
             if (string.IsNullOrEmpty(updatedName) || string.IsNullOrEmpty(updatedBadge))
             {
                 MessageBox.Show("Employee name and badge number fields cannot be empty.", "Validation Error");
                 return;
             }
 
+            // Execute SQL update query to save changes
             string query = "UPDATE Employees SET FullName = @Name, Username = @User, BadgeNumber = @Badge, Role = @Role WHERE EmployeeID = @ID";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
@@ -81,10 +88,12 @@ namespace ECS_GUI
 
             MessageBox.Show($"Profile modifications for {updatedName} have been successfully saved!");
 
+            // Refresh UI and clear form fields for next action
             PopulateEmployeeDropdown();
             ClearFormInputs();
         }
 
+        // Resets the form inputs to blank states
         private void ClearFormInputs()
         {
             txtEmployeeName.Clear();
@@ -105,6 +114,7 @@ namespace ECS_GUI
             this.Close();
         }
 
+        // Event handler to populate form fields when an employee is selected from the dropdown
         private void cmbSelectEmployee_SelectedIndexChanged_1(object sender, EventArgs e)
         {
             if (cmbSelectEmployee.SelectedIndex >= 0)
@@ -117,10 +127,12 @@ namespace ECS_GUI
 
                 if (selectedEmployee != null)
                 {
+                    // Populate fields with data from the selected employee object
                     txtEmployeeName.Text = selectedEmployee.FullName;
                     txtBadgeNumber.Text = selectedEmployee.BadgeNumber;
                     cmbRole.SelectedItem = selectedEmployee.Role;
 
+                    // Uncheck all skills, then check only those associated with the user
                     for (int i = 0; i < clbSkillLevels.Items.Count; i++)
                     {
                         clbSkillLevels.SetItemChecked(i, false);

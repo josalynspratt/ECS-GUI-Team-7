@@ -103,7 +103,7 @@
             Controls.Add(cmbSelectEquipment);
             Controls.Add(lblSelectEquipment);
             Name = "DecommissionEquipmentForm";
-            Text = "DecommissionEquipmentForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

@@ -124,7 +124,7 @@
             Controls.Add(btnEditEquipment);
             Controls.Add(btnAddEquipment);
             Name = "EquipmentMenuForm";
-            Text = "EquipmentMenuForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

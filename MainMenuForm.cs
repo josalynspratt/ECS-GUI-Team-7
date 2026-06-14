@@ -3,6 +3,7 @@ using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // The central hub for administrators, providing access to all management modules
     public partial class MainMenuForm : Form
     {
         public MainMenuForm()
@@ -11,6 +12,7 @@ namespace ECS_GUI
             this.Text = "Equipment Checkout System - Admin Control Panel";
         }
 
+        // Navigates to the inventory management module
         private void btnEquipmentManagement_Click(object sender, EventArgs e)
         {
             EquipmentMenuForm equipMenu = new EquipmentMenuForm();
@@ -18,6 +20,7 @@ namespace ECS_GUI
             this.Hide();
         }
 
+        // Navigates to the personnel management module
         private void btnEmployeeManagement_Click(object sender, EventArgs e)
         {
             EmployeeMenuForm empMenu = new EmployeeMenuForm();
@@ -25,6 +28,7 @@ namespace ECS_GUI
             this.Hide();
         }
 
+        // Opens the dashboard to view and process pending checkout requests
         private void btnViewRequests_Click(object sender, EventArgs e)
         {
             ViewRequestsForm checkoutRequests = new ViewRequestsForm();
@@ -32,6 +36,7 @@ namespace ECS_GUI
             this.Hide();
         }
 
+        // Accesses the return asset module to process incoming equipment check-ins
         private void btnCheckInEquipment_Click(object sender, EventArgs e)
         {
             CheckInEquipmentForm checkInScreen = new CheckInEquipmentForm();
@@ -39,6 +44,7 @@ namespace ECS_GUI
             this.Hide();
         }
 
+        // Navigates to the system reporting dashboard
         private void btnSystemReports_Click(object sender, EventArgs e)
         {
             ReportsMenuForm reportsMenu = new ReportsMenuForm();
@@ -50,6 +56,7 @@ namespace ECS_GUI
         {
         }
 
+        // Terminates the admin session and returns to the login screen
         private void btnLogout_Click(object sender, EventArgs e)
         {
             Login loginScreen = new Login();

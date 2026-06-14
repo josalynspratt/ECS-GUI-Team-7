@@ -134,7 +134,7 @@
             Controls.Add(btnTransactionMasterLog);
             Controls.Add(btnActiveInventory);
             Name = "ReportsMenuForm";
-            Text = "ReportsMenuForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

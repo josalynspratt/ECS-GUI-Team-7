@@ -200,7 +200,7 @@
             Controls.Add(txtEquipmentName);
             Controls.Add(cmbSelectEquipment);
             Name = "EditEquipmentForm";
-            Text = "EditEquipmentForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

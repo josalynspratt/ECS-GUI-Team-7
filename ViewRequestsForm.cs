@@ -2,23 +2,27 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for displaying pending checkout requests and managing the approval/denial workflow
     public partial class ViewRequestsForm : Form
     {
         private DataTable requestsTable;
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
+        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=" + Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ECSDatabase.mdf") + ";Integrated Security=True";
 
         public ViewRequestsForm()
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Pending Requests";
+            // Load pending requests upon initialization
             RefreshRequestsGrid();
         }
 
+        // Queries the database for all requests currently marked as 'Pending' and populates the DataGridView
         private void RefreshRequestsGrid()
         {
             requestsTable = new DataTable();
@@ -30,17 +34,42 @@ namespace ECS_GUI
             requestsTable.Columns.Add("Project Name");
             requestsTable.Columns.Add("Status");
 
-            foreach (var req in CentralData.RequestList)
+            string query = "SELECT RequestID, EmployeeID, EmployeeName, EquipmentName, CheckoutDate, ProjectName, Status FROM CheckoutRequests WHERE Status = 'Pending'";
+
+            try
             {
-                if (req.Status == "Pending")
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    requestsTable.Rows.Add(req.RequestID, req.EmployeeID, req.EmployeeName, req.EquipmentName, req.CheckoutDate, req.ProjectName, req.Status);
+                    SqlCommand cmd = new SqlCommand(query, conn);
+                    conn.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            requestsTable.Rows.Add(
+                                reader["RequestID"].ToString(),
+                                reader["EmployeeID"].ToString(),
+                                reader["EmployeeName"].ToString(),
+                                reader["EquipmentName"].ToString(),
+                                reader["CheckoutDate"].ToString(),
+                                reader["ProjectName"].ToString(),
+                                reader["Status"].ToString()
+                            );
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading requests: " + ex.Message);
             }
 
             dgvRequests.DataSource = requestsTable;
             dgvRequests.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-            dgvRequests.Columns[requestsTable.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            if (dgvRequests.Columns.Count > 0)
+            {
+                dgvRequests.Columns[dgvRequests.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
         }
 
         private void btnApprove_Click(object sender, EventArgs e)
@@ -53,6 +82,7 @@ namespace ECS_GUI
             ProcessSelectedRequest("Denied");
         }
 
+        // Logic for updating the request status and syncing the corresponding equipment availability
         private void ProcessSelectedRequest(string targetStatus)
         {
             if (dgvRequests.SelectedRows.Count > 0)
@@ -60,32 +90,41 @@ namespace ECS_GUI
                 DataGridViewRow selectedRow = dgvRequests.SelectedRows[0];
                 string requestId = selectedRow.Cells["Request ID"].Value.ToString();
 
-                CheckoutRequest match = CentralData.RequestList.Find(r => r.RequestID == requestId);
+                string updateRequestQuery = "UPDATE CheckoutRequests SET Status = @Status WHERE RequestID = @RID";
+                string updateEquipQuery = "UPDATE Equipment SET Status = @EquipStatus WHERE EquipmentName = @EquipName";
 
-                if (match != null)
+                try
                 {
-                    match.Status = targetStatus;
-
-                    List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
-                    EquipmentItem asset = equipment.Find(eq => eq.Id == match.EquipmentID);
-                    if (asset != null)
+                    using (SqlConnection conn = new SqlConnection(connectionString))
                     {
-                        int isCheckedOutValue = (targetStatus == "Approved") ? 1 : 0;
-                        string query = "UPDATE Equipment SET IsCheckedOut = @IsCheckedOut WHERE EquipmentID = @ID";
+                        conn.Open();
 
-                        using (SqlConnection conn = new SqlConnection(connectionString))
+                        // 1. Update the request status
+                        using (SqlCommand cmd = new SqlCommand(updateRequestQuery, conn))
                         {
-                            SqlCommand cmd = new SqlCommand(query, conn);
-                            cmd.Parameters.AddWithValue("@IsCheckedOut", isCheckedOutValue);
-                            cmd.Parameters.AddWithValue("@ID", Convert.ToInt32(match.EquipmentID));
+                            cmd.Parameters.AddWithValue("@Status", targetStatus);
+                            cmd.Parameters.AddWithValue("@RID", requestId);
+                            cmd.ExecuteNonQuery();
+                        }
 
-                            conn.Open();
+                        // 2. Synchronize equipment status: 'Checked Out' if approved, 'Available' if denied
+                        string equipName = selectedRow.Cells["Equipment"].Value.ToString();
+                        string newEquipStatus = (targetStatus == "Approved") ? "Checked Out" : "Available";
+
+                        using (SqlCommand cmd = new SqlCommand(updateEquipQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@EquipStatus", newEquipStatus);
+                            cmd.Parameters.AddWithValue("@EquipName", equipName);
                             cmd.ExecuteNonQuery();
                         }
                     }
 
                     MessageBox.Show($"Request {requestId} has been successfully {targetStatus.ToLower()}!");
-                    RefreshRequestsGrid();
+                    RefreshRequestsGrid(); // Update the UI
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Database Update Error: " + ex.Message);
                 }
             }
             else

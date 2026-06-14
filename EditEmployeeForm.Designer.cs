@@ -199,7 +199,7 @@
             Controls.Add(cmbSelectEmployee);
             Controls.Add(label1);
             Name = "EditEmployeeForm";
-            Text = "EditEmployeeFormForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }

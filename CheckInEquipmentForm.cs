@@ -8,16 +8,19 @@ namespace ECS_GUI
 {
     public partial class CheckInEquipmentForm : Form
     {
+        // Connection string for the local database file
         private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
 
         public CheckInEquipmentForm()
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Return Asset";
+            // Populate list of available assets and location options on initialization
             PopulateCheckedOutEquipment();
             PopulateLocationDropdown();
         }
 
+        // Fills the location dropdown to allow staff to specify warehouse destination
         private void PopulateLocationDropdown()
         {
             cmbLocation.Items.Clear();
@@ -29,6 +32,7 @@ namespace ECS_GUI
             }
         }
 
+        // Filters and displays only equipment currently marked as 'Checked Out'
         private void PopulateCheckedOutEquipment()
         {
             lstCheckedOutEquipment.Items.Clear();
@@ -41,6 +45,7 @@ namespace ECS_GUI
             }
         }
 
+        // Updates the location dropdown to reflect the current known location of the selected item
         private void lstCheckedOutEquipment_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lstCheckedOutEquipment.SelectedIndex >= 0)
@@ -57,6 +62,7 @@ namespace ECS_GUI
             }
         }
 
+        // Handles the core check-in logic: updating DB status and finalizing the request record
         private void btnCheckIn_Click(object sender, EventArgs e)
         {
             if (lstCheckedOutEquipment.SelectedIndex < 0)
@@ -79,6 +85,7 @@ namespace ECS_GUI
             var targetEquipment = equipment.FirstOrDefault(item => item.Id == equipmentIdStr);
             if (targetEquipment != null)
             {
+                // Update equipment status to 'Available' and set the new location in DB
                 string query = "UPDATE Equipment SET Status = @Status, Location = @Location WHERE EquipmentID = @ID";
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
@@ -92,6 +99,7 @@ namespace ECS_GUI
                     cmd.ExecuteNonQuery();
                 }
 
+                // Update the in-memory checkout request status to 'Returned'
                 var activeRequest = CentralData.RequestList.FirstOrDefault(r =>
                     r.EquipmentID == targetEquipment.Id && r.Status == "Approved");
 
@@ -103,10 +111,12 @@ namespace ECS_GUI
 
                 MessageBox.Show($"{targetEquipment.Name} has been successfully checked in and transferred to {newLocation}.");
 
+                // Refresh the list to remove the checked-in item
                 PopulateCheckedOutEquipment();
             }
         }
 
+        // Navigation back to the Main Menu
         private void btnBack_Click(object sender, EventArgs e)
         {
             MainMenuForm mainMenu = new MainMenuForm();

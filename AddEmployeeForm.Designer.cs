@@ -194,7 +194,7 @@
             Controls.Add(lblEmployeeID);
             Controls.Add(txtEmployeeID);
             Name = "AddEmployeeForm";
-            Text = "AddEmployeeForm";
+            Text = "Equipment Checkout System";
             ResumeLayout(false);
             PerformLayout();
         }
