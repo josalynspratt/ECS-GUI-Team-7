@@ -18,7 +18,7 @@ namespace ECS_GUI
             string inputID = txtEmployeeID.Text.Trim();
             string inputBadge = txtBadgeNumber.Text.Trim();
 
-            if (inputID.Equals("9999") && inputBadge.Equals("B999", StringComparison.OrdinalIgnoreCase))
+            if (inputID.Equals("99999") && inputBadge.Equals("B999", StringComparison.OrdinalIgnoreCase))
             {
                 MessageBox.Show("Success! Welcome Admin.");
                 MainMenuForm mainMenu = new MainMenuForm();
