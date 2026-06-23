@@ -141,7 +141,6 @@
             Controls.Add(label1);
             Name = "MainMenuForm";
             Text = "Equipment Checkout System";
-            Load += MainMenuForm_Load;
             ResumeLayout(false);
             PerformLayout();
         }

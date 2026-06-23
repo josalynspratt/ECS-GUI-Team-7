@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -8,21 +7,30 @@ namespace ECS_GUI
 {
     public partial class DecommissionEquipmentForm : Form
     {
-        // Database connection string for the local application database
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
+        private Form parentForm;
 
-        public DecommissionEquipmentForm()
+        public DecommissionEquipmentForm(Form parent)
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Decommission Equipment";
-            // Populate the dropdown with active (non-decommissioned) equipment on load
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            parentForm = parent;
+
+            // IMPORTANT: hide parent so we can safely return to it
+            if (parentForm != null && !parentForm.IsDisposed)
+            {
+                parentForm.Hide();
+            }
+
             PopulateEquipmentDropdown();
         }
 
-        // Filters equipment list to show only items that are not yet decommissioned
         private void PopulateEquipmentDropdown()
         {
             cmbSelectEquipment.Items.Clear();
+
             List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
 
             foreach (var item in equipment)
@@ -36,71 +44,56 @@ namespace ECS_GUI
 
         private void btnDecommission_Click(object sender, EventArgs e)
         {
-            // Validate that an item is selected from the dropdown
             if (cmbSelectEquipment.SelectedIndex < 0)
             {
-                MessageBox.Show("Please select an equipment item to decommission first.", "Selection Required");
+                MessageBox.Show("Please select an equipment item first.");
                 return;
             }
 
-            // Extract the Equipment ID from the selected display string
             string selectedText = cmbSelectEquipment.SelectedItem.ToString();
-            int equipmentId = int.Parse(selectedText.Split(':')[0]);
+            string equipmentId = selectedText.Split(':')[0].Trim();
 
-            List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
-            var targetEquipment = equipment.FirstOrDefault(item => item.Id == equipmentId.ToString());
+            var equipment = CentralData.GetEquipmentFromDatabase();
+            var target = equipment.FirstOrDefault(x => x.Id == equipmentId);
 
-            if (targetEquipment != null)
+            if (target == null)
             {
-                // Prevent decommissioning of items currently in use to maintain data integrity
-                if (targetEquipment.Status == "Checked Out")
-                {
-                    MessageBox.Show(
-                        $"{targetEquipment.Name} cannot be decommissioned because it is currently checked out by an employee. " +
-                        "It must be checked back in before it can be removed from inventory.",
-                        "Action Denied",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Stop
-                    );
-                    return;
-                }
+                MessageBox.Show("Equipment not found.");
+                return;
+            }
 
-                // Require explicit user confirmation to avoid accidental data loss
-                DialogResult confirmResult = MessageBox.Show(
-                    $"Are you sure you want to decommission {targetEquipment.Name}? This will permanently remove it from the active asset list.",
-                    "Confirm Decommission",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning
-                );
+            if (target.Status == "Checked Out")
+            {
+                MessageBox.Show("Cannot decommission equipment that is checked out.");
+                return;
+            }
 
-                if (confirmResult == DialogResult.Yes)
-                {
-                    // Execute removal query
-                    string query = "DELETE FROM Equipment WHERE EquipmentID = @ID";
+            DialogResult confirm = MessageBox.Show(
+                $"Decommission {target.Name}?",
+                "Confirm",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
 
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@ID", equipmentId);
+            if (confirm == DialogResult.Yes)
+            {
+                CentralData.DecommissionEquipment(equipmentId);
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                    }
+                MessageBox.Show("Equipment successfully decommissioned.");
 
-                    MessageBox.Show("The equipment has been successfully decommissioned.");
-
-                    // Refresh the selection list
-                    PopulateEquipmentDropdown();
-                }
+                PopulateEquipmentDropdown();
             }
         }
 
         private void btnBack_Click(object sender, EventArgs e)
         {
-            // Navigate back to the Equipment Management menu
-            EquipmentMenuForm equipMenu = new EquipmentMenuForm();
-            equipMenu.Show();
             this.Close();
+
+            if (parentForm != null && !parentForm.IsDisposed)
+            {
+                parentForm.StartPosition = FormStartPosition.CenterScreen;
+                parentForm.Show();
+            }
         }
     }
 }

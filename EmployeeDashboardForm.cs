@@ -13,15 +13,16 @@ namespace ECS_GUI
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Employee Menu";
+            this.StartPosition = FormStartPosition.CenterScreen;
             this.loggedInID = employeeID;
         }
 
         // Navigates to the equipment tracking form in 'Employee' viewing mode
         private void btnViewEquipment_Click(object sender, EventArgs e)
         {
-            TrackEquipmentForm trackForm = new TrackEquipmentForm("Employee");
+            TrackEquipmentForm trackForm = new TrackEquipmentForm(this);
             trackForm.Show();
-            this.Close();
+            this.Hide();
         }
 
         // Navigates to the checkout request form, passing the current session ID

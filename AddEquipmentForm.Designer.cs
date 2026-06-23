@@ -28,9 +28,9 @@
         /// </summary>
         private void InitializeComponent()
         {
-            ComboBox cmbLocation;
             txtEquipmentName = new TextBox();
             cmbRequiredSkill = new ComboBox();
+            cmbLocation = new ComboBox();
             btnSaveEquipment = new Button();
             btnBack = new Button();
             lblEquipmentName = new Label();
@@ -42,7 +42,6 @@
             lblLocation = new Label();
             label1 = new Label();
             txtModel = new TextBox();
-            cmbLocation = new ComboBox();
             SuspendLayout();
             // 
             // txtEquipmentName
@@ -64,6 +63,16 @@
             cmbRequiredSkill.Name = "cmbRequiredSkill";
             cmbRequiredSkill.Size = new Size(276, 25);
             cmbRequiredSkill.TabIndex = 1;
+            // 
+            // cmbLocation
+            // 
+            cmbLocation.Cursor = Cursors.Hand;
+            cmbLocation.Font = new Font("Segoe UI", 10F);
+            cmbLocation.FormattingEnabled = true;
+            cmbLocation.Location = new Point(293, 216);
+            cmbLocation.Name = "cmbLocation";
+            cmbLocation.Size = new Size(276, 25);
+            cmbLocation.TabIndex = 18;
             // 
             // btnSaveEquipment
             // 
@@ -89,6 +98,7 @@
             btnBack.TabIndex = 3;
             btnBack.Text = "Back to Menu";
             btnBack.UseVisualStyleBackColor = false;
+            btnBack.Click += btnBack_Click;
             // 
             // lblEquipmentName
             // 
@@ -150,6 +160,7 @@
             btnAddSkillLevel.TabIndex = 11;
             btnAddSkillLevel.Text = "Add New Skill Level";
             btnAddSkillLevel.UseVisualStyleBackColor = false;
+            btnAddSkillLevel.Click += btnAddSkillLevel_Click;
             // 
             // lblLocation
             // 
@@ -160,16 +171,6 @@
             lblLocation.Size = new Size(64, 19);
             lblLocation.TabIndex = 13;
             lblLocation.Text = "Location:";
-            // 
-            // cmbLocation
-            // 
-            cmbLocation.Cursor = Cursors.Hand;
-            cmbLocation.Font = new Font("Segoe UI", 10F);
-            cmbLocation.FormattingEnabled = true;
-            cmbLocation.Location = new Point(293, 216);
-            cmbLocation.Name = "cmbLocation";
-            cmbLocation.Size = new Size(276, 25);
-            cmbLocation.TabIndex = 14;
             // 
             // label1
             // 
@@ -198,9 +199,9 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(cmbLocation);
             Controls.Add(txtModel);
             Controls.Add(label1);
-            Controls.Add(cmbLocation);
             Controls.Add(lblLocation);
             Controls.Add(btnAddSkillLevel);
             Controls.Add(txtNewSkillLevel);
@@ -232,8 +233,8 @@
         private TextBox txtNewSkillLevel;
         private Button btnAddSkillLevel;
         private Label lblLocation;
-        private System.Windows.Forms.ComboBox cmbLocation;
         private Label label1;
         private TextBox txtModel;
+        private ComboBox cmbLocation;
     }
 }

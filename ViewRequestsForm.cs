@@ -1,31 +1,33 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace ECS_GUI
 {
-    // Form responsible for displaying pending checkout requests and managing the approval/denial workflow
+    // Form responsible for displaying pending checkout requests and managing approval/denial workflow
     public partial class ViewRequestsForm : Form
     {
         private DataTable requestsTable;
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=" + Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ECSDatabase.mdf") + ";Integrated Security=True";
+
+        // FIXED: use centralized connection string (prevents attachdbfilename errors)
+        private static string connectionString = CentralData.ConnectionString;
 
         public ViewRequestsForm()
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Pending Requests";
-            // Load pending requests upon initialization
+            this.StartPosition = FormStartPosition.CenterScreen;
+
             RefreshRequestsGrid();
         }
 
-        // Queries the database for all requests currently marked as 'Pending' and populates the DataGridView
+        // Loads all pending checkout requests into the grid
         private void RefreshRequestsGrid()
         {
             requestsTable = new DataTable();
+
             requestsTable.Columns.Add("Request ID");
             requestsTable.Columns.Add("Employee ID");
             requestsTable.Columns.Add("Employee Name");
@@ -34,14 +36,17 @@ namespace ECS_GUI
             requestsTable.Columns.Add("Project Name");
             requestsTable.Columns.Add("Status");
 
-            string query = "SELECT RequestID, EmployeeID, EmployeeName, EquipmentName, CheckoutDate, ProjectName, Status FROM CheckoutRequests WHERE Status = 'Pending'";
+            string query =
+                "SELECT RequestID, EmployeeID, EmployeeName, EquipmentName, CheckoutDate, ProjectName, Status " +
+                "FROM CheckoutRequests WHERE Status = 'Pending'";
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    SqlCommand cmd = new SqlCommand(query, conn);
                     conn.Open();
+
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
@@ -65,10 +70,13 @@ namespace ECS_GUI
             }
 
             dgvRequests.DataSource = requestsTable;
+
             dgvRequests.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+
             if (dgvRequests.Columns.Count > 0)
             {
-                dgvRequests.Columns[dgvRequests.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvRequests.Columns[dgvRequests.Columns.Count - 1]
+                    .AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
         }
 
@@ -82,62 +90,75 @@ namespace ECS_GUI
             ProcessSelectedRequest("Denied");
         }
 
-        // Logic for updating the request status and syncing the corresponding equipment availability
+        // Updates request + equipment status safely
         private void ProcessSelectedRequest(string targetStatus)
         {
-            if (dgvRequests.SelectedRows.Count > 0)
+            if (dgvRequests.CurrentRow == null)
             {
-                DataGridViewRow selectedRow = dgvRequests.SelectedRows[0];
-                string requestId = selectedRow.Cells["Request ID"].Value.ToString();
+                MessageBox.Show("Please select a request row first.");
+                return;
+            }
 
-                string updateRequestQuery = "UPDATE CheckoutRequests SET Status = @Status WHERE RequestID = @RID";
-                string updateEquipQuery = "UPDATE Equipment SET Status = @EquipStatus WHERE EquipmentName = @EquipName";
+            try
+            {
+                DataGridViewRow selectedRow = dgvRequests.CurrentRow;
 
-                try
+                string requestId = selectedRow.Cells["Request ID"]?.Value?.ToString();
+                string equipName = selectedRow.Cells["Equipment"]?.Value?.ToString();
+
+                if (string.IsNullOrEmpty(requestId) || string.IsNullOrEmpty(equipName))
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    MessageBox.Show("Selected row data is invalid.");
+                    return;
+                }
+
+                string updateRequestQuery =
+                    "UPDATE CheckoutRequests SET Status = @Status WHERE RequestID = @RID";
+
+                string updateEquipQuery =
+                    "UPDATE Equipment SET Status = @EquipStatus WHERE EquipmentName = @EquipName";
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // 1. Update request status
+                    using (SqlCommand cmd = new SqlCommand(updateRequestQuery, conn))
                     {
-                        conn.Open();
-
-                        // 1. Update the request status
-                        using (SqlCommand cmd = new SqlCommand(updateRequestQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Status", targetStatus);
-                            cmd.Parameters.AddWithValue("@RID", requestId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        // 2. Synchronize equipment status: 'Checked Out' if approved, 'Available' if denied
-                        string equipName = selectedRow.Cells["Equipment"].Value.ToString();
-                        string newEquipStatus = (targetStatus == "Approved") ? "Checked Out" : "Available";
-
-                        using (SqlCommand cmd = new SqlCommand(updateEquipQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@EquipStatus", newEquipStatus);
-                            cmd.Parameters.AddWithValue("@EquipName", equipName);
-                            cmd.ExecuteNonQuery();
-                        }
+                        cmd.Parameters.AddWithValue("@Status", targetStatus);
+                        cmd.Parameters.AddWithValue("@RID", requestId);
+                        cmd.ExecuteNonQuery();
                     }
 
-                    MessageBox.Show($"Request {requestId} has been successfully {targetStatus.ToLower()}!");
-                    RefreshRequestsGrid(); // Update the UI
+                    // 2. Sync equipment status
+                    string newEquipStatus =
+                        (targetStatus == "Approved") ? "Checked Out" : "Available";
+
+                    using (SqlCommand cmd = new SqlCommand(updateEquipQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@EquipStatus", newEquipStatus);
+                        cmd.Parameters.AddWithValue("@EquipName", equipName);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Database Update Error: " + ex.Message);
-                }
+
+                MessageBox.Show($"Request {requestId} has been {targetStatus.ToLower()}!");
+                RefreshRequestsGrid();
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Please select a pending request row from the list grid first.");
+                MessageBox.Show("Database Update Error: " + ex.Message);
             }
         }
 
+        // BACK NAVIGATION (FIXED - prevents app exit crash)
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
             this.Close();
+
+            MainMenuForm mainMenu = new MainMenuForm();
+            mainMenu.StartPosition = FormStartPosition.CenterScreen;
+            mainMenu.Show();
         }
     }
 }

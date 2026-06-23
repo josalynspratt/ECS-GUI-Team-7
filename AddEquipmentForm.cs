@@ -1,116 +1,153 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for adding new equipment and new skill levels to the system
     public partial class AddEquipmentForm : Form
     {
-        // Connection string configured to locate the local database file dynamically in the application directory
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=" + Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ECSDatabase.mdf") + ";Integrated Security=True";
-
         public AddEquipmentForm()
         {
             InitializeComponent();
+
+            // Set the window title displayed in the title bar
             this.Text = "Equipment Checkout System - Add Equipment";
-            // Register load event to initialize dropdowns
+            this.StartPosition = FormStartPosition.CenterScreen;
+            // Load dropdown data when the form opens
             this.Load += AddEquipmentForm_Load;
         }
 
+        // Initializes all dropdown controls when the form loads
         private void AddEquipmentForm_Load(object sender, EventArgs e)
         {
             PopulateSkillDropdown();
             PopulateLocationDropdown();
         }
 
-        // Populates the required skill dropdown from the centralized database
+        // Loads all available skills from the database into the Required Skill dropdown
         private void PopulateSkillDropdown()
         {
             cmbRequiredSkill.Items.Clear();
+
             List<string> skills = CentralData.GetSkillsFromDatabase();
+
             foreach (var skill in skills)
             {
                 cmbRequiredSkill.Items.Add(skill);
             }
+
             if (cmbRequiredSkill.Items.Count > 0)
             {
                 cmbRequiredSkill.SelectedIndex = 0;
             }
         }
 
-        // Populates the warehouse location dropdown with available options
+        // Populates the available equipment storage locations
         private void PopulateLocationDropdown()
         {
             cmbLocation.Items.Clear();
+
             cmbLocation.Items.Add("Main Warehouse");
             cmbLocation.Items.Add("Campus Warehouse");
-            if (cmbLocation.Items.Count > 0)
-            {
-                cmbLocation.SelectedIndex = 0;
-            }
+
+            cmbLocation.SelectedIndex = 0;
         }
 
+        // Saves a new equipment record to the database
         private void btnSaveEquipment_Click(object sender, EventArgs e)
         {
-            // Capture user input from the form
-            string eqName = txtEquipmentName.Text.Trim();
-            string eqModel = txtModel.Text.Trim();
-            string reqSkill = cmbRequiredSkill.SelectedItem?.ToString();
+            // Collect information entered by the administrator
+            string name = txtEquipmentName.Text.Trim();
+            string model = txtModel.Text.Trim();
+            string skill = cmbRequiredSkill.SelectedItem?.ToString();
             string location = cmbLocation.SelectedItem?.ToString();
 
-            // Perform input validation for required fields
-            if (string.IsNullOrEmpty(eqName) || string.IsNullOrEmpty(eqModel))
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(model))
             {
-                MessageBox.Show("Please enter an equipment name and model description.");
+                MessageBox.Show("Enter equipment name and model.");
                 return;
             }
 
-            if (string.IsNullOrEmpty(location))
-            {
-                MessageBox.Show("Please select a warehouse location.");
-                return;
-            }
+            // Generate the next available Equipment ID
+            int nextId = 1;
 
-            // Determine the next asset ID by finding the maximum current ID and incrementing
-            int nextNumericId = 1;
             List<EquipmentItem> items = CentralData.GetEquipmentFromDatabase();
+
             if (items.Count > 0)
             {
-                var numericIds = items.Select(eq => int.TryParse(eq.Id, out int parseResult) ? parseResult : 0);
-                nextNumericId = numericIds.Max() + 1;
+                nextId = items.Max(x => int.TryParse(x.Id, out int value) ? value : 0) + 1;
             }
 
-            // SQL insert query utilizing parameters to ensure data security
-            string query = "INSERT INTO Equipment (EquipmentID, EquipmentName, Model, RequiredSkill, Status, Location) VALUES (@ID, @Name, @Model, @Skill, @Status, @Location)";
+            // Save the equipment to the database
+            CentralData.AddEquipment(
+                name,
+                model,
+                skill ?? "Standard",
+                location,
+                nextId);
+
+            // Notify the administrator that the save was successful
+            MessageBox.Show($"{name} added successfully with ID {nextId}");
+
+            // Clear the form so another piece of equipment can be entered
+            txtEquipmentName.Clear();
+            txtModel.Clear();
+
+            if (cmbRequiredSkill.Items.Count > 0)
+                cmbRequiredSkill.SelectedIndex = 0;
+
+            cmbLocation.SelectedIndex = 0;
+
+            // Return focus to the Equipment Name field
+            txtEquipmentName.Focus();
+        }
+
+        // Adds a new skill level to the database
+        private void btnAddSkillLevel_Click(object sender, EventArgs e)
+        {
+            // Retrieve the new skill entered by the administrator
+            string skillName = txtNewSkillLevel.Text.Trim();
+
+            // Validate that a skill name was entered
+            if (string.IsNullOrWhiteSpace(skillName))
+            {
+                MessageBox.Show("Enter skill name.");
+                return;
+            }
 
             try
             {
-                // Execute the database insert operation
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@ID", nextNumericId);
-                    cmd.Parameters.AddWithValue("@Name", eqName);
-                    cmd.Parameters.AddWithValue("@Model", eqModel);
-                    cmd.Parameters.AddWithValue("@Skill", reqSkill ?? "Standard");
-                    cmd.Parameters.AddWithValue("@Status", "Available"); // Default status upon creation
-                    cmd.Parameters.AddWithValue("@Location", location);
+                // Save the new skill
+                CentralData.AddSkill(skillName);
 
-                    conn.Open();
-                    cmd.ExecuteNonQuery();
-                }
+                MessageBox.Show("Skill added successfully!");
 
-                MessageBox.Show($"{eqName} has been successfully added with Asset ID: {nextNumericId}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                this.Close(); // Return to the inventory management dashboard
+                // Clear the skill entry field
+                txtNewSkillLevel.Clear();
+
+                // Refresh the Required Skill dropdown so the new skill is immediately available
+                PopulateSkillDropdown();
+
+                // Return focus to the skill textbox
+                txtNewSkillLevel.Focus();
             }
             catch (Exception ex)
             {
-                // Handle potential database connection or constraint errors
                 MessageBox.Show("Database error: " + ex.Message);
             }
+        }
+
+        // Returns the administrator to the Equipment Management Menu
+        private void btnBack_Click(object sender, EventArgs e)
+        {
+            EquipmentMenuForm equipmentMenu = new EquipmentMenuForm();
+            equipmentMenu.StartPosition = FormStartPosition.CenterScreen;
+            equipmentMenu.Show();
+
+            this.Close();
         }
     }
 }

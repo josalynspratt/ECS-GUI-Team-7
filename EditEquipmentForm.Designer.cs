@@ -75,6 +75,7 @@
             btnSaveUpdates.TabIndex = 3;
             btnSaveUpdates.Text = "Save Updates";
             btnSaveUpdates.UseVisualStyleBackColor = false;
+            btnSaveUpdates.Click += btnSave_Click;
             // 
             // btnBack
             // 

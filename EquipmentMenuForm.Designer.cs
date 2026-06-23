@@ -73,7 +73,7 @@
             btnDecommission.TabIndex = 9;
             btnDecommission.Text = "Decommission Equipment";
             btnDecommission.UseVisualStyleBackColor = false;
-            btnDecommission.Click += btnDecommission_Click;
+            btnDecommission.Click += btnDecommissionEquipment_Click;
             // 
             // btnViewEquipment
             // 

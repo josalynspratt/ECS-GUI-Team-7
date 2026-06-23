@@ -10,17 +10,19 @@ namespace ECS_GUI
     public partial class RemoveEmployeeForm : Form
     {
         private Employee selectedEmployee;
-        // Database connection string for the local application database
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
+
+        // FIX: unified connection string (prevents AttachDbFilename mismatch errors)
+        private static string connectionString = CentralData.ConnectionString;
 
         public RemoveEmployeeForm()
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Remove Employee Profile";
-            // Initialize the list of available employees
+            this.StartPosition = FormStartPosition.CenterScreen;
+
             PopulateEmployeeDropdown();
 
-            // Configure text box for read-only display of selected employee data
             txtEmployeeDetails.Multiline = true;
             txtEmployeeDetails.ReadOnly = true;
         }
@@ -29,40 +31,43 @@ namespace ECS_GUI
         private void PopulateEmployeeDropdown()
         {
             cmbSelectEmployee.Items.Clear();
+
             List<Employee> employees = CentralData.GetEmployeesFromDatabase();
+
             foreach (var emp in employees)
             {
                 cmbSelectEmployee.Items.Add($"{emp.EmployeeID}: {emp.FullName} ({emp.Role})");
             }
-            txtEmployeeDetails.Clear(); // Clear display area on refresh
+
+            txtEmployeeDetails.Clear();
             selectedEmployee = null;
         }
 
-        // Event handler to load employee details when an item is selected from the dropdown
+        // Event handler to load employee details when selected
         private void cmbSelectEmployee_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cmbSelectEmployee.SelectedIndex >= 0)
-            {
-                string selectedText = cmbSelectEmployee.Items[cmbSelectEmployee.SelectedIndex].ToString();
-                string targetID = selectedText.Split(':')[0].Trim();
+            if (cmbSelectEmployee.SelectedIndex < 0)
+                return;
 
-                List<Employee> employees = CentralData.GetEmployeesFromDatabase();
-                selectedEmployee = employees.FirstOrDefault(emp => emp.EmployeeID == targetID);
+            string selectedText = cmbSelectEmployee.SelectedItem.ToString();
+            string targetID = selectedText.Split(':')[0].Trim();
 
-                if (selectedEmployee != null)
-                {
-                    // Update display field with profile information
-                    txtEmployeeDetails.Text = $"ID: {selectedEmployee.EmployeeID}{Environment.NewLine}" +
-                                             $"Name: {selectedEmployee.FullName}{Environment.NewLine}" +
-                                             $"Badge: {selectedEmployee.BadgeNumber}{Environment.NewLine}" +
-                                             $"Role: {selectedEmployee.Role}{Environment.NewLine}" +
-                                             $"Skills: {selectedEmployee.Skills}";
-                }
-            }
+            List<Employee> employees = CentralData.GetEmployeesFromDatabase();
+            selectedEmployee = employees.FirstOrDefault(emp => emp.EmployeeID == targetID);
+
+            if (selectedEmployee == null)
+                return;
+
+            txtEmployeeDetails.Text =
+                $"ID: {selectedEmployee.EmployeeID}{Environment.NewLine}" +
+                $"Name: {selectedEmployee.FullName}{Environment.NewLine}" +
+                $"Badge: {selectedEmployee.BadgeNumber}{Environment.NewLine}" +
+                $"Role: {selectedEmployee.Role}{Environment.NewLine}" +
+                $"Skills: {selectedEmployee.Skills}";
         }
 
-        // Handles the permanent deletion of the selected employee profile
-        private void btnRemove_Click(object sender, EventArgs e)
+        // Handles permanent deletion
+        private void btnRemoveEmployee_Click(object sender, EventArgs e)
         {
             if (selectedEmployee == null)
             {
@@ -70,43 +75,46 @@ namespace ECS_GUI
                 return;
             }
 
-            // Prompt user for confirmation to prevent accidental data loss
-            DialogResult confirmResult = MessageBox.Show($"Are you sure you want to permanently delete the profile for {selectedEmployee.FullName}?", "Confirm Deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            DialogResult confirmResult = MessageBox.Show(
+                $"Are you sure you want to permanently delete the profile for {selectedEmployee.FullName}?",
+                "Confirm Deletion",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
 
-            if (confirmResult == DialogResult.Yes)
+            if (confirmResult != DialogResult.Yes)
+                return;
+
+            string query = "DELETE FROM Employees WHERE EmployeeID = @ID";
+
+            try
             {
-                string query = "DELETE FROM Employees WHERE EmployeeID = @ID";
-
-                try
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    // Execute the SQL DELETE command
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        using (SqlCommand cmd = new SqlCommand(query, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@ID", Convert.ToInt32(selectedEmployee.EmployeeID));
-                            conn.Open();
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
+                    cmd.Parameters.AddWithValue("@ID", selectedEmployee.EmployeeID);
 
-                    MessageBox.Show("Employee profile successfully removed.", "Success");
-                    PopulateEmployeeDropdown(); // Refresh dropdown to reflect changes
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
                 }
-                catch (Exception ex)
-                {
-                    // Handle potential database constraints or connection issues
-                    MessageBox.Show($"Error removing employee: {ex.Message}", "Database Error");
-                }
+
+                MessageBox.Show("Employee profile successfully removed.", "Success");
+
+                PopulateEmployeeDropdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error removing employee: {ex.Message}", "Database Error");
             }
         }
 
-        // Returns the user to the main menu
+        // BACK BUTTON (consistent navigation rule)
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
             this.Close();
+
+            EmployeeMenuForm menu = new EmployeeMenuForm();
+            menu.StartPosition = FormStartPosition.CenterScreen;
+            menu.Show();
         }
     }
 }

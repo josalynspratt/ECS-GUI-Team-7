@@ -9,12 +9,13 @@ namespace ECS_GUI
     public partial class CheckInEquipmentForm : Form
     {
         // Connection string for the local database file
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
-
+        private static string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\ECSDatabase.mdf;Integrated Security=True";
         public CheckInEquipmentForm()
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Return Asset";
+            this.StartPosition = FormStartPosition.CenterScreen;
+
             // Populate list of available assets and location options on initialization
             PopulateCheckedOutEquipment();
             PopulateLocationDropdown();
@@ -119,9 +120,11 @@ namespace ECS_GUI
         // Navigation back to the Main Menu
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
             this.Close();
+
+            MainMenuForm mainMenu = new MainMenuForm();
+            mainMenu.StartPosition = FormStartPosition.CenterScreen;
+            mainMenu.Show();
         }
 
         private void CheckInEquipmentForm_Load(object sender, EventArgs e)

@@ -89,6 +89,7 @@
             btnRemoveEmployee.TabIndex = 5;
             btnRemoveEmployee.Text = "Remove Employee Record";
             btnRemoveEmployee.UseVisualStyleBackColor = false;
+            btnRemoveEmployee.Click += btnRemoveEmployee_Click;
             // 
             // btnBack
             // 

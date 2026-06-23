@@ -154,6 +154,7 @@
             btnBack.TabIndex = 11;
             btnBack.Text = "Back to Menu";
             btnBack.UseVisualStyleBackColor = false;
+            btnBack.Click += btnBack_Click;
             // 
             // clbSkillLevels
             // 

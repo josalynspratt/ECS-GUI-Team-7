@@ -9,59 +9,47 @@ namespace ECS_GUI
         public MainMenuForm()
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Admin Control Panel";
+            this.StartPosition = FormStartPosition.CenterScreen;
         }
 
-        // Navigates to the inventory management module
+        // UNIVERSAL NAVIGATION METHOD
+        private void NavigateTo(Form nextForm)
+        {
+            nextForm.StartPosition = FormStartPosition.CenterScreen;
+            nextForm.Show();
+            this.Close();
+        }
+
         private void btnEquipmentManagement_Click(object sender, EventArgs e)
         {
-            EquipmentMenuForm equipMenu = new EquipmentMenuForm();
-            equipMenu.Show();
-            this.Hide();
+            NavigateTo(new EquipmentMenuForm());
         }
 
-        // Navigates to the personnel management module
         private void btnEmployeeManagement_Click(object sender, EventArgs e)
         {
-            EmployeeMenuForm empMenu = new EmployeeMenuForm();
-            empMenu.Show();
-            this.Hide();
+            NavigateTo(new EmployeeMenuForm());
         }
 
-        // Opens the dashboard to view and process pending checkout requests
         private void btnViewRequests_Click(object sender, EventArgs e)
         {
-            ViewRequestsForm checkoutRequests = new ViewRequestsForm();
-            checkoutRequests.Show();
-            this.Hide();
+            NavigateTo(new ViewRequestsForm());
         }
 
-        // Accesses the return asset module to process incoming equipment check-ins
         private void btnCheckInEquipment_Click(object sender, EventArgs e)
         {
-            CheckInEquipmentForm checkInScreen = new CheckInEquipmentForm();
-            checkInScreen.Show();
-            this.Hide();
+            NavigateTo(new CheckInEquipmentForm());
         }
 
-        // Navigates to the system reporting dashboard
         private void btnSystemReports_Click(object sender, EventArgs e)
         {
-            ReportsMenuForm reportsMenu = new ReportsMenuForm();
-            reportsMenu.Show();
-            this.Hide();
+            NavigateTo(new ReportsMenuForm());
         }
 
-        private void MainMenuForm_Load(object sender, EventArgs e)
-        {
-        }
-
-        // Terminates the admin session and returns to the login screen
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            Login loginScreen = new Login();
-            loginScreen.Show();
-            this.Close();
+            NavigateTo(new Login());
         }
     }
 }

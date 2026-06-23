@@ -128,7 +128,6 @@
             Controls.Add(btnAddEmployee);
             Name = "EmployeeMenuForm";
             Text = "Equipment Checkout System";
-            Load += EmployeeMenuForm_Load;
             ResumeLayout(false);
             PerformLayout();
         }

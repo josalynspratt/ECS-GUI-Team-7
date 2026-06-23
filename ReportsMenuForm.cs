@@ -14,6 +14,7 @@ namespace ECS_GUI
         public ReportsMenuForm()
         {
             InitializeComponent();
+            this.StartPosition = FormStartPosition.CenterScreen;
             this.Text = "Equipment Checkout System - Reports Menu";
         }
 
@@ -100,9 +101,11 @@ namespace ECS_GUI
         // Returns the user to the Main Menu
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
             this.Close();
+
+            MainMenuForm mainMenu = new MainMenuForm();
+            mainMenu.StartPosition = FormStartPosition.CenterScreen;
+            mainMenu.Show();
         }
     }
 }

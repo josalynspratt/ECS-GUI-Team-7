@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -13,7 +12,10 @@ namespace ECS_GUI
         public SearchEmployeesForm()
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Employee Directory";
+            this.StartPosition = FormStartPosition.CenterScreen;
+
             // Load the initial full roster on form initialization
             RefreshRosterGrid("");
         }
@@ -23,7 +25,6 @@ namespace ECS_GUI
         {
             DataTable rosterTable = new DataTable();
 
-            // Define the structure of the data table for display
             rosterTable.Columns.Add("Employee ID");
             rosterTable.Columns.Add("Name");
             rosterTable.Columns.Add("Badge Number");
@@ -32,49 +33,65 @@ namespace ECS_GUI
 
             List<Employee> employees = CentralData.GetEmployeesFromDatabase();
 
-            // Apply filter logic to match ID or Name
             var filteredList = employees.Where(emp =>
-                emp.EmployeeID.Contains(filterText) ||
-                emp.FullName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0);
+                (!string.IsNullOrEmpty(emp.EmployeeID) &&
+                 emp.EmployeeID.Contains(filterText)) ||
+
+                (!string.IsNullOrEmpty(emp.FullName) &&
+                 emp.FullName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0));
 
             foreach (var emp in filteredList)
             {
-                // Join request data to show what equipment each employee currently holds
                 var activeHoldings = CentralData.RequestList
                     .Where(r => r.EmployeeID == emp.EmployeeID && r.Status == "Approved")
                     .Select(r => r.EquipmentName)
                     .ToList();
 
-                string holdingsDisplay = activeHoldings.Count > 0 ? string.Join(", ", activeHoldings) : "None (Clear)";
+                string holdingsDisplay = activeHoldings.Count > 0
+                    ? string.Join(", ", activeHoldings)
+                    : "None (Clear)";
 
-                string formattedSkills = emp.Skills;
+                string formattedSkills = emp.Skills ?? "None";
 
-                // Add record to the DataTable for binding
-                rosterTable.Rows.Add(emp.EmployeeID, emp.FullName, emp.BadgeNumber, formattedSkills, holdingsDisplay);
+                rosterTable.Rows.Add(
+                    emp.EmployeeID,
+                    emp.FullName,
+                    emp.BadgeNumber,
+                    formattedSkills,
+                    holdingsDisplay
+                );
             }
 
-            // Bind data to the GridView and format columns
             dgvSearchResults.DataSource = rosterTable;
+
             dgvSearchResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-            dgvSearchResults.Columns[rosterTable.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+            if (dgvSearchResults.Columns.Count > 0)
+            {
+                dgvSearchResults.Columns[dgvSearchResults.Columns.Count - 1]
+                    .AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
         }
 
-        // Trigger the filter refresh based on user search term
+        // Trigger search refresh
         private void btnExecuteSearch_Click(object sender, EventArgs e)
         {
             RefreshRosterGrid(txtEmployeeSearch.Text.Trim());
         }
 
-        // Return navigation
+        // RETURN NAVIGATION (standardized)
         private void btnBack_Click(object sender, EventArgs e)
         {
-            EmployeeMenuForm empMenu = new EmployeeMenuForm();
-            empMenu.Show();
             this.Close();
+
+            EmployeeMenuForm menu = new EmployeeMenuForm();
+            menu.StartPosition = FormStartPosition.CenterScreen;
+            menu.Show();
         }
 
         private void SearchEmployeesForm_Load(object sender, EventArgs e)
         {
+            // intentionally left blank
         }
     }
 }

@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 
 namespace ECS_GUI
@@ -13,13 +10,27 @@ namespace ECS_GUI
     public partial class TrackEquipmentForm : Form
     {
         private DataTable equipmentTable; // Underlying data source for grid display
-        private string userRole;           // Tracks if user is Admin or Employee for navigation
 
-        public TrackEquipmentForm(string role = "Admin")
+        // Stores the form that opened this one (Admin menu OR Employee dashboard)
+        private Form parentForm;
+
+        public TrackEquipmentForm(Form parent)
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Track Equipment";
-            this.userRole = role;
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            parentForm = parent;
+
+            // Safer navigation pattern:
+            // Instead of relying on a potentially Closed parent, we keep reference
+            // and only Hide it if it's still valid.
+            if (parentForm != null && !parentForm.IsDisposed)
+            {
+                parentForm.Hide();
+            }
+
             InitializeEquipmentData();
             InitializeFilterOptions();
         }
@@ -28,6 +39,7 @@ namespace ECS_GUI
         private void InitializeEquipmentData()
         {
             equipmentTable = new DataTable();
+
             equipmentTable.Columns.Add("Asset ID", typeof(string));
             equipmentTable.Columns.Add("Name", typeof(string));
             equipmentTable.Columns.Add("Model", typeof(string));
@@ -39,12 +51,21 @@ namespace ECS_GUI
 
             foreach (var item in equipment)
             {
-                equipmentTable.Rows.Add(item.Id, item.Name, item.Model, item.RequiredSkill, item.Status, item.Location);
+                equipmentTable.Rows.Add(
+                    item.Id,
+                    item.Name,
+                    item.Model,
+                    item.RequiredSkill,
+                    item.Status,
+                    item.Location
+                );
             }
 
             dgvActiveCheckouts.DataSource = equipmentTable;
+
             dgvActiveCheckouts.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-            dgvActiveCheckouts.Columns[equipmentTable.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            dgvActiveCheckouts.Columns[equipmentTable.Columns.Count - 1].AutoSizeMode =
+                DataGridViewAutoSizeColumnMode.Fill;
         }
 
         // Configures filter dropdown for status-based inventory views
@@ -55,38 +76,47 @@ namespace ECS_GUI
             cmbStatusFilter.Items.Add("Available");
             cmbStatusFilter.Items.Add("Pending");
             cmbStatusFilter.Items.Add("Checked Out");
+
             cmbStatusFilter.SelectedIndex = 0;
         }
 
-        // Updates grid view dynamically when the status filter is changed
+        // Updates grid view dynamically when filter changes
         private void cmbStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
             string selectedStatus = cmbStatusFilter.SelectedItem.ToString();
 
             if (selectedStatus == "All")
-            {
-                equipmentTable.DefaultView.RowFilter = ""; // Remove filter
-            }
+                equipmentTable.DefaultView.RowFilter = "";
             else
-            {
-                equipmentTable.DefaultView.RowFilter = $"Status = '{selectedStatus}'"; // Filter by selected status
-            }
+                equipmentTable.DefaultView.RowFilter = $"Status = '{selectedStatus}'";
         }
 
-        // Redirects user back to their respective menu based on account privileges
+        // Returns to the form that opened this screen
         private void btnBackToMenu_Click(object sender, EventArgs e)
         {
-            if (!userRole.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+            Form targetMenu = parentForm;
+
+            this.Hide(); // IMPORTANT: do NOT Close()
+
+            // If parent still exists, reuse it
+            if (targetMenu != null && !targetMenu.IsDisposed)
             {
-                EquipmentMenuForm equipMenu = new EquipmentMenuForm();
-                equipMenu.Show();
+                targetMenu.StartPosition = FormStartPosition.CenterScreen;
+                targetMenu.Show();
+                return;
             }
-            else
+
+            // FALLBACK: recover correct menu instance if parent is gone
+            Form recoveredMenu =
+                Application.OpenForms
+                .Cast<Form>()
+                .FirstOrDefault(f => f is EquipmentMenuForm || f is EmployeeDashboardForm);
+
+            if (recoveredMenu != null)
             {
-                EmployeeDashboardForm empDashboard = new EmployeeDashboardForm();
-                empDashboard.Show();
+                recoveredMenu.StartPosition = FormStartPosition.CenterScreen;
+                recoveredMenu.Show();
             }
-            this.Close();
         }
     }
 }

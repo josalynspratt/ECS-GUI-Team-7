@@ -6,88 +6,100 @@ using System.Windows.Forms;
 
 namespace ECS_GUI
 {
+    // Form responsible for editing existing equipment records in the system
     public partial class EditEquipmentForm : Form
     {
         private EquipmentItem selectedItem;
-        // Database connection string for the local application database
-        private string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Projects\ECS_GUI\ECSDatabase.mdf;Integrated Security=True";
+        private Form parentForm;
 
-        public EditEquipmentForm()
+        // FIX: unified connection string to avoid AttachDbFilename inconsistencies
+        private static string connectionString = CentralData.ConnectionString;
+
+        public EditEquipmentForm(Form parent)
         {
             InitializeComponent();
+
             this.Text = "Equipment Checkout System - Edit Equipment";
-            // Populate form controls on load
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            parentForm = parent;
+
+            // IMPORTANT: hide parent instead of losing it
+            if (parentForm != null && !parentForm.IsDisposed)
+            {
+                parentForm.Hide();
+            }
+
             PopulateFormOptions();
         }
 
-        // Sets up location and skill options, then loads available equipment
         private void PopulateFormOptions()
         {
             cmbLocation.Items.Clear();
             cmbLocation.Items.Add("Main Warehouse");
             cmbLocation.Items.Add("Campus Warehouse");
+
             if (cmbLocation.Items.Count > 0)
-            {
                 cmbLocation.SelectedIndex = 0;
-            }
 
             clbRequiredSkills.Items.Clear();
+
             List<string> skills = CentralData.GetSkillsFromDatabase();
             foreach (var skill in skills)
-            {
                 clbRequiredSkills.Items.Add(skill);
-            }
 
             PopulateEquipmentDropdown();
         }
 
-        // Fills the equipment selection dropdown for editing
         private void PopulateEquipmentDropdown()
         {
             cmbSelectEquipment.Items.Clear();
+
             List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
+
             foreach (var item in equipment)
-            {
                 cmbSelectEquipment.Items.Add($"{item.Id}: {item.Name} ({item.Status})");
-            }
         }
 
-        // Event handler to populate form fields when an item is selected from the dropdown
         private void cmbSelectEquipment_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cmbSelectEquipment.SelectedIndex >= 0)
+            if (cmbSelectEquipment.SelectedIndex < 0)
+                return;
+
+            string selectedText = cmbSelectEquipment.SelectedItem.ToString();
+            string targetID = selectedText.Split(':')[0].Trim();
+
+            List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
+            selectedItem = equipment.FirstOrDefault(eq => eq.Id == targetID);
+
+            if (selectedItem == null)
+                return;
+
+            txtEquipmentName.Text = selectedItem.Name;
+            txtModel.Text = selectedItem.Model;
+
+            cmbLocation.SelectedItem = selectedItem.Location;
+
+            for (int i = 0; i < clbRequiredSkills.Items.Count; i++)
+                clbRequiredSkills.SetItemChecked(i, false);
+
+            string[] skills = (selectedItem.RequiredSkill ?? "")
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0; i < clbRequiredSkills.Items.Count; i++)
             {
-                string selectedText = cmbSelectEquipment.SelectedItem.ToString();
-                string targetID = selectedText.Split(':')[0].Trim();
+                string skillName = clbRequiredSkills.Items[i].ToString();
 
-                List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
-                selectedItem = equipment.FirstOrDefault(eq => eq.Id == targetID);
-
-                if (selectedItem != null)
-                {
-                    txtEquipmentName.Text = selectedItem.Name;
-                    txtModel.Text = selectedItem.Model;
-
-                    if (cmbLocation.Items.Contains(selectedItem.Location))
-                    {
-                        cmbLocation.SelectedItem = selectedItem.Location;
-                    }
-
-                    // Pre-select the appropriate skill in the checklist
-                    for (int i = 0; i < clbRequiredSkills.Items.Count; i++)
-                    {
-                        clbRequiredSkills.SetItemChecked(i, clbRequiredSkills.Items[i].ToString() == selectedItem.RequiredSkill);
-                    }
-                }
+                if (skills.Contains(skillName))
+                    clbRequiredSkills.SetItemChecked(i, true);
             }
         }
 
-        // Handles validation and updating the record in the SQL database
         private void btnSave_Click(object sender, EventArgs e)
         {
             if (selectedItem == null)
             {
-                MessageBox.Show("Please select an equipment item to edit.", "Selection Error");
+                MessageBox.Show("Please select an equipment item to edit.");
                 return;
             }
 
@@ -95,54 +107,65 @@ namespace ECS_GUI
             string updatedModel = txtModel.Text.Trim();
             string updatedLocation = cmbLocation.SelectedItem?.ToString();
 
-            // Default skill logic
-            string updatedSkill = "Standard";
-            if (clbRequiredSkills.CheckedItems.Count > 0)
+            if (string.IsNullOrWhiteSpace(updatedName) || string.IsNullOrWhiteSpace(updatedModel))
             {
-                updatedSkill = clbRequiredSkills.CheckedItems[0].ToString();
-            }
-
-            // Perform input validation
-            if (string.IsNullOrEmpty(updatedName) || string.IsNullOrEmpty(updatedModel))
-            {
-                MessageBox.Show("Name and Model fields cannot be empty.", "Validation Error");
+                MessageBox.Show("Name and Model cannot be empty.");
                 return;
             }
 
-            // Define update query using parameterized values to maintain data security
-            string query = "UPDATE Equipment SET EquipmentName = @Name, Model = @Model, RequiredSkill = @Skill, Location = @Location WHERE EquipmentID = @ID";
+            string updatedSkill = "Standard";
+
+            if (clbRequiredSkills.CheckedItems.Count > 0)
+            {
+                List<string> selectedSkills = new List<string>();
+
+                foreach (var item in clbRequiredSkills.CheckedItems)
+                    selectedSkills.Add(item.ToString());
+
+                updatedSkill = string.Join(",", selectedSkills);
+            }
+
+            string query = @"
+                UPDATE Equipment 
+                SET EquipmentName = @Name,
+                    Model = @Model,
+                    RequiredSkill = @Skill,
+                    Location = @Location
+                WHERE EquipmentID = @ID";
 
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Name", updatedName);
-                        cmd.Parameters.AddWithValue("@Model", updatedModel);
-                        cmd.Parameters.AddWithValue("@Skill", updatedSkill);
-                        cmd.Parameters.AddWithValue("@Location", updatedLocation);
-                        cmd.Parameters.AddWithValue("@ID", Convert.ToInt32(selectedItem.Id));
+                    cmd.Parameters.AddWithValue("@Name", updatedName);
+                    cmd.Parameters.AddWithValue("@Model", updatedModel);
+                    cmd.Parameters.AddWithValue("@Skill", updatedSkill);
+                    cmd.Parameters.AddWithValue("@Location", updatedLocation ?? "Main Warehouse");
+                    cmd.Parameters.AddWithValue("@ID", selectedItem.Id);
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                    }
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
                 }
 
-                MessageBox.Show("Equipment details updated successfully!", "Success");
-                PopulateEquipmentDropdown(); // Refresh the list
+                MessageBox.Show("Equipment updated successfully!");
+                PopulateEquipmentDropdown();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error updating equipment: {ex.Message}", "Database Error");
+                MessageBox.Show($"Error updating equipment: {ex.Message}");
             }
         }
 
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
             this.Close();
+
+            if (parentForm != null && !parentForm.IsDisposed)
+            {
+                parentForm.StartPosition = FormStartPosition.CenterScreen;
+                parentForm.Show();
+            }
         }
     }
 }

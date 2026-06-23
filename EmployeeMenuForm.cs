@@ -6,34 +6,46 @@ namespace ECS_GUI
     // Form responsible for administrative tasks related to managing employee profiles
     public partial class EmployeeMenuForm : Form
     {
-        // Constructor for the administrative employee management menu
         public EmployeeMenuForm()
         {
             InitializeComponent();
-            this.Text = "Equipment Checkout System - Admin: Employee Management";
+
+            this.Text = "Equipment Checkout System - Employee Management";
+            this.StartPosition = FormStartPosition.CenterScreen;
         }
 
-        // Navigates to the form for adding a new employee to the system
+        // UNIVERSAL NAVIGATION METHOD
+        private void NavigateTo(Form nextForm)
+        {
+            nextForm.StartPosition = FormStartPosition.CenterScreen;
+            nextForm.Show();
+
+            this.Close();
+        }
+
         private void btnAddEmployee_Click(object sender, EventArgs e)
         {
-            AddEmployeeForm addForm = new AddEmployeeForm();
-            addForm.Show();
+            NavigateTo(new AddEmployeeForm());
         }
 
-        // Navigates to the form for updating existing employee profiles
         private void btnEditEmployee_Click(object sender, EventArgs e)
         {
-            EditEmployeeForm editForm = new EditEmployeeForm();
-            editForm.Show();
-            this.Close();
+            NavigateTo(new EditEmployeeForm());
         }
 
-        // Returns the administrator to the main system menu
+        private void btnRemoveEmployee_Click(object sender, EventArgs e)
+        {
+            NavigateTo(new RemoveEmployeeForm());
+        }
+
+        private void btnViewRoster_Click(object sender, EventArgs e)
+        {
+            NavigateTo(new SearchEmployeesForm());
+        }
+
         private void btnBack_Click(object sender, EventArgs e)
         {
-            MainMenuForm mainMenu = new MainMenuForm();
-            mainMenu.Show();
-            this.Close();
+            NavigateTo(new MainMenuForm());
         }
     }
 }
