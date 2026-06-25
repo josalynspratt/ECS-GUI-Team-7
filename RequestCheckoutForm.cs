@@ -9,12 +9,12 @@ namespace ECS_GUI
     // Form responsible for enabling employees to request equipment checkouts with skill validation
     public partial class RequestCheckoutForm : Form
     {
-        private static string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\ECSDatabase.mdf;Integrated Security=True";
+        private static string connectionString = CentralData.ConnectionString;
+
         public RequestCheckoutForm(string employeeID)
         {
             InitializeComponent();
             this.StartPosition = FormStartPosition.CenterScreen;
-
 
             try
             {
@@ -76,11 +76,15 @@ namespace ECS_GUI
                 return;
             }
 
-            // Enforce security clearance: check if user possesses the required skill for the item
-            if (!string.IsNullOrEmpty(targetEquipment.RequiredSkill) && !currentEmployee.Skills.Contains(targetEquipment.RequiredSkill))
+            if (!string.IsNullOrEmpty(targetEquipment.RequiredSkill) &&
+                !currentEmployee.Skills.Contains(targetEquipment.RequiredSkill))
             {
-                MessageBox.Show($"Access Denied! This equipment requires '{targetEquipment.RequiredSkill}' clearance, which is not assigned to your profile.",
-                                "Clearance Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    $"Access Denied! This equipment requires '{targetEquipment.RequiredSkill}' clearance.",
+                    "Clearance Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 return;
             }
 
@@ -91,7 +95,6 @@ namespace ECS_GUI
                 return;
             }
 
-            // Instantiate request object and generate tracking info
             CheckoutRequest newRequest = new CheckoutRequest
             {
                 RequestID = CentralData.GenerateNextRequestID(),
@@ -106,16 +109,19 @@ namespace ECS_GUI
                 ActualReturnDate = "N/A"
             };
 
-            // Database operations to record request and update equipment status
-            string insertRequestQuery = "INSERT INTO CheckoutRequests (RequestID, EmployeeID, EmployeeName, EquipmentName, CheckoutDate, ProjectName, Status) VALUES (@RID, @EID, @EName, @Equip, @Date, @Proj, @Status)";
-            string updateEquipQuery = "UPDATE Equipment SET Status = 'Pending' WHERE EquipmentID = @ID";
-
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Transactional approach would be ideal, but here we perform sequence operations
+
+                    // Insert request
+                    string insertRequestQuery =
+                        @"INSERT INTO CheckoutRequests
+                  (RequestID, EmployeeID, EmployeeName, EquipmentName, CheckoutDate, ProjectName, Status)
+                  VALUES
+                  (@RID, @EID, @EName, @Equip, @Date, @Proj, @Status)";
+
                     using (SqlCommand cmd = new SqlCommand(insertRequestQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@RID", newRequest.RequestID);
@@ -129,17 +135,41 @@ namespace ECS_GUI
                     }
 
                     CentralData.RequestList.Add(newRequest);
-
-                    using (SqlCommand cmd = new SqlCommand(updateEquipQuery, conn))
+                    CentralData.AuditLogList.Add(new AuditLog
                     {
-                        cmd.Parameters.AddWithValue("@ID", newRequest.EquipmentID);
+                        LogID = Guid.NewGuid().ToString(),
+                        Action = "Checkout Requested",
+                        Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                        Details = $"{currentEmployee.EmployeeID} requested {targetEquipment.Name}"
+                    });
+
+                    // Update equipment
+                    string updateEquipmentQuery =
+                        @"UPDATE Equipment
+                  SET AssignedEmployeeID = @EmpID,
+                      ExpectedReturnDate = @ReturnDate,
+                      Status = 'Checked Out',
+                      LastUpdated = @Updated
+                  WHERE EquipmentID = @EquipID";
+
+                    using (SqlCommand cmd = new SqlCommand(updateEquipmentQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@EmpID", currentEmployee.EmployeeID);
+                        cmd.Parameters.AddWithValue("@ReturnDate", newRequest.ExpectedReturnDate);
+                        cmd.Parameters.AddWithValue("@Updated", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@EquipID", targetEquipment.Id);
                         cmd.ExecuteNonQuery();
                     }
                 }
 
-                MessageBox.Show("Checkout request submitted successfully for approval.");
+                MessageBox.Show("Checkout request submitted successfully.");
+
                 txtProjectName.Clear();
                 cmbEquipmentList.SelectedIndex = -1;
+                CentralData.AddAuditLog(
+                    "Checkout Requested",
+                    $"Employee {currentEmployee.EmployeeID} requested {targetEquipment.Name}"
+);
             }
             catch (Exception ex)
             {

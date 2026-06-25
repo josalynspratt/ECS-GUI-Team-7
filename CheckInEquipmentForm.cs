@@ -9,8 +9,7 @@ namespace ECS_GUI
     public partial class CheckInEquipmentForm : Form
     {
         // Connection string for the local database file
-        private static string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\ECSDatabase.mdf;Integrated Security=True";
-        public CheckInEquipmentForm()
+        private static string connectionString = CentralData.ConnectionString; public CheckInEquipmentForm()
         {
             InitializeComponent();
             this.Text = "Equipment Checkout System - Return Asset";
@@ -39,7 +38,6 @@ namespace ECS_GUI
             lstCheckedOutEquipment.Items.Clear();
             List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
             var activeCheckouts = equipment.Where(item => item.Status == "Checked Out");
-
             foreach (var item in activeCheckouts)
             {
                 lstCheckedOutEquipment.Items.Add($"{item.Id}: {item.Name}");
@@ -68,53 +66,70 @@ namespace ECS_GUI
         {
             if (lstCheckedOutEquipment.SelectedIndex < 0)
             {
-                MessageBox.Show("Please select an item from the list to check in.", "Selection Required");
+                MessageBox.Show("Please select an item.", "Selection Required");
                 return;
             }
 
             string selectedText = lstCheckedOutEquipment.SelectedItem.ToString();
-            string equipmentIdStr = selectedText.Split(':')[0];
+            string equipmentIdStr = selectedText.Split(':')[0].Trim();
             string newLocation = cmbLocation.SelectedItem?.ToString();
 
             if (string.IsNullOrEmpty(newLocation))
             {
-                MessageBox.Show("Please select a return warehouse destination.");
+                MessageBox.Show("Select a return location.");
                 return;
             }
 
             List<EquipmentItem> equipment = CentralData.GetEquipmentFromDatabase();
             var targetEquipment = equipment.FirstOrDefault(item => item.Id == equipmentIdStr);
-            if (targetEquipment != null)
+
+            if (targetEquipment == null) return;
+
+            string query =
+                @"UPDATE Equipment
+          SET Status = @Status,
+              Location = @Location,
+              AssignedEmployeeID = NULL,
+              ExpectedReturnDate = NULL,
+              LastUpdated = @Updated
+          WHERE EquipmentID = @ID";
+
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            using (SqlCommand cmd = new SqlCommand(query, conn))
             {
-                // Update equipment status to 'Available' and set the new location in DB
-                string query = "UPDATE Equipment SET Status = @Status, Location = @Location WHERE EquipmentID = @ID";
+                cmd.Parameters.AddWithValue("@Status", "Available");
+                cmd.Parameters.AddWithValue("@Location", newLocation);
+                cmd.Parameters.AddWithValue("@Updated", DateTime.Now);
+                cmd.Parameters.AddWithValue("@ID", equipmentIdStr);
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                conn.Open();
+                cmd.ExecuteNonQuery();
+                CentralData.AuditLogList.Add(new AuditLog
                 {
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@Status", "Available");
-                    cmd.Parameters.AddWithValue("@Location", newLocation);
-                    cmd.Parameters.AddWithValue("@ID", Convert.ToInt32(equipmentIdStr));
-
-                    conn.Open();
-                    cmd.ExecuteNonQuery();
-                }
-
-                // Update the in-memory checkout request status to 'Returned'
-                var activeRequest = CentralData.RequestList.FirstOrDefault(r =>
-                    r.EquipmentID == targetEquipment.Id && r.Status == "Approved");
-
-                if (activeRequest != null)
-                {
-                    activeRequest.Status = "Returned";
-                    activeRequest.ActualReturnDate = DateTime.Now.ToString("MM/dd/yyyy");
-                }
-
-                MessageBox.Show($"{targetEquipment.Name} has been successfully checked in and transferred to {newLocation}.");
-
-                // Refresh the list to remove the checked-in item
-                PopulateCheckedOutEquipment();
+                    LogID = Guid.NewGuid().ToString(),
+                    Action = "Equipment Checked In",
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Details = $"{targetEquipment.Id} checked in to {newLocation}"
+                });
             }
+
+            var activeRequest = CentralData.RequestList.FirstOrDefault(r =>
+                r.EquipmentID == targetEquipment.Id &&
+                r.Status == "Pending");
+
+            if (activeRequest != null)
+            {
+                activeRequest.Status = "Returned";
+                activeRequest.ActualReturnDate = DateTime.Now.ToString("MM/dd/yyyy");
+            }
+
+            MessageBox.Show($"{targetEquipment.Name} checked in.");
+            CentralData.AddAuditLog(
+                 "Equipment Checked In",
+                  $"{targetEquipment.Name} returned to {newLocation}"
+            );
+
+            PopulateCheckedOutEquipment();
         }
 
         // Navigation back to the Main Menu

@@ -105,6 +105,7 @@ namespace ECS_GUI
 
                 string requestId = selectedRow.Cells["Request ID"]?.Value?.ToString();
                 string equipName = selectedRow.Cells["Equipment"]?.Value?.ToString();
+                string employeeId = selectedRow.Cells["Employee ID"]?.Value?.ToString(); // ✅ FIX ADDED HERE
 
                 if (string.IsNullOrEmpty(requestId) || string.IsNullOrEmpty(equipName))
                 {
@@ -130,7 +131,7 @@ namespace ECS_GUI
                         cmd.ExecuteNonQuery();
                     }
 
-                    // 2. Sync equipment status
+                    // 2. Update equipment status
                     string newEquipStatus =
                         (targetStatus == "Approved") ? "Checked Out" : "Available";
 
@@ -139,6 +140,22 @@ namespace ECS_GUI
                         cmd.Parameters.AddWithValue("@EquipStatus", newEquipStatus);
                         cmd.Parameters.AddWithValue("@EquipName", equipName);
                         cmd.ExecuteNonQuery();
+                    }
+
+                    // 3. AUDIT LOG (FIXED + MOVED OUTSIDE SQL BLOCK)
+                    if (targetStatus == "Approved")
+                    {
+                        CentralData.AddAuditLog(
+                            "Request Approved",
+                            $"Request {requestId} approved for equipment {equipName}"
+                        );
+                    }
+                    else if (targetStatus == "Denied")
+                    {
+                        CentralData.AddAuditLog(
+                            "Request Denied",
+                            $"Request {requestId} denied for equipment {equipName}"
+                        );
                     }
                 }
 

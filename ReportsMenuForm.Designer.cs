@@ -48,6 +48,7 @@
             btnActiveInventory.TabIndex = 0;
             btnActiveInventory.Text = "Active Operational Inventory";
             btnActiveInventory.UseVisualStyleBackColor = false;
+            btnActiveInventory.Click += btnActiveInventory_Click_1;
             // 
             // btnTransactionMasterLog
             // 
@@ -60,6 +61,7 @@
             btnTransactionMasterLog.TabIndex = 1;
             btnTransactionMasterLog.Text = "Transaction Master Log";
             btnTransactionMasterLog.UseVisualStyleBackColor = false;
+            btnTransactionMasterLog.Click += btnTransactionMasterLog_Click;
             // 
             // btnOutboundDeployments
             // 
@@ -72,6 +74,7 @@
             btnOutboundDeployments.TabIndex = 2;
             btnOutboundDeployments.Text = "Active Outbound Deployments";
             btnOutboundDeployments.UseVisualStyleBackColor = false;
+            btnOutboundDeployments.Click += btnOutboundDeployments_Click;
             // 
             // btnAuditLogTrail
             // 
@@ -84,6 +87,7 @@
             btnAuditLogTrail.TabIndex = 3;
             btnAuditLogTrail.Text = "Audit Logs";
             btnAuditLogTrail.UseVisualStyleBackColor = false;
+            btnAuditLogTrail.Click += btnAuditLogTrail_Click;
             // 
             // btnDecommissionedReport
             // 
@@ -96,6 +100,7 @@
             btnDecommissionedReport.TabIndex = 4;
             btnDecommissionedReport.Text = "Decommissioned Equipment";
             btnDecommissionedReport.UseVisualStyleBackColor = false;
+            btnDecommissionedReport.Click += btnDecommissionedReport_Click;
             // 
             // btnBack
             // 

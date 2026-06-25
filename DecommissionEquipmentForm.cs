@@ -35,6 +35,7 @@ namespace ECS_GUI
 
             foreach (var item in equipment)
             {
+                // Only show equipment that is NOT already decommissioned
                 if (item.Status != "Decommissioned")
                 {
                     cmbSelectEquipment.Items.Add($"{item.Id}: {item.Name} ({item.Status})");
@@ -62,6 +63,7 @@ namespace ECS_GUI
                 return;
             }
 
+            // Prevent decommissioning equipment that is currently checked out
             if (target.Status == "Checked Out")
             {
                 MessageBox.Show("Cannot decommission equipment that is checked out.");
@@ -77,9 +79,22 @@ namespace ECS_GUI
 
             if (confirm == DialogResult.Yes)
             {
+                // Updates database: sets status to Decommissioned and clears assignment fields
                 CentralData.DecommissionEquipment(equipmentId);
 
+                CentralData.AuditLogList.Add(new AuditLog
+                {
+                    LogID = Guid.NewGuid().ToString(),
+                    Action = "Equipment Decommissioned",
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Details = $"Equipment {equipmentId} was decommissioned"
+                });
+
                 MessageBox.Show("Equipment successfully decommissioned.");
+                CentralData.AddAuditLog(
+                    "Equipment Decommissioned",
+                    $"{target.Name} was decommissioned"
+                );
 
                 PopulateEquipmentDropdown();
             }

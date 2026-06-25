@@ -49,6 +49,8 @@ namespace ECS_GUI
 
         // ADDED: expected return date for operational tracking and reporting
         public string ExpectedReturnDate { get; set; }
+
+        public string LastUpdated { get; set; }
     }
 
     public static class CentralData
@@ -60,11 +62,22 @@ namespace ECS_GUI
         public static List<CheckoutRequest> RequestList { get; set; } = new List<CheckoutRequest>();
         public static List<AuditLog> AuditLogList { get; set; } = new List<AuditLog>();
 
-        private static int nextIdSequence = 101;
+        // ---------------- AUDIT LOGGING ----------------
+
+        // CENTRAL LOG METHOD: ensures ALL actions are tracked consistently
+        public static void AddAuditLog(string action, string details)
+        {
+            AuditLogList.Add(new AuditLog
+            {
+                LogID = Guid.NewGuid().ToString(),
+                Action = action,
+                Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                Details = details
+            });
+        }
 
         // ---------------- EMPLOYEES ----------------
 
-        // Retrieves all employees from the database
         public static List<Employee> GetEmployeesFromDatabase()
         {
             List<Employee> list = new List<Employee>();
@@ -98,7 +111,6 @@ namespace ECS_GUI
 
         // ---------------- EQUIPMENT ----------------
 
-        // Retrieves all equipment from the database
         public static List<EquipmentItem> GetEquipmentFromDatabase()
         {
             List<EquipmentItem> list = new List<EquipmentItem>();
@@ -107,7 +119,7 @@ namespace ECS_GUI
             {
                 SqlCommand cmd = new SqlCommand(
                     @"SELECT EquipmentID, EquipmentName, Model, RequiredSkill, Status, Location,
-                             AssignedEmployeeID, ExpectedReturnDate
+                             AssignedEmployeeID, ExpectedReturnDate, LastUpdated
                       FROM Equipment",
                     conn);
 
@@ -126,15 +138,9 @@ namespace ECS_GUI
                             Status = reader["Status"].ToString(),
                             Location = reader["Location"].ToString(),
 
-                            // SAFE NULL HANDLING: prevents DBNull crash
-                            AssignedEmployeeID = reader["AssignedEmployeeID"] == DBNull.Value
-                                ? null
-                                : reader["AssignedEmployeeID"].ToString(),
-
-                            // SAFE NULL HANDLING: prevents DBNull crash
-                            ExpectedReturnDate = reader["ExpectedReturnDate"] == DBNull.Value
-                                ? null
-                                : reader["ExpectedReturnDate"].ToString()
+                            LastUpdated = reader["LastUpdated"] == DBNull.Value ? null : reader["LastUpdated"].ToString(),
+                            AssignedEmployeeID = reader["AssignedEmployeeID"] == DBNull.Value ? null : reader["AssignedEmployeeID"].ToString(),
+                            ExpectedReturnDate = reader["ExpectedReturnDate"] == DBNull.Value ? null : reader["ExpectedReturnDate"].ToString()
                         });
                     }
                 }
@@ -145,7 +151,6 @@ namespace ECS_GUI
 
         // ---------------- SKILLS ----------------
 
-        // Retrieves skill list from database
         public static List<string> GetSkillsFromDatabase()
         {
             List<string> list = new List<string>();
@@ -166,10 +171,8 @@ namespace ECS_GUI
             return list;
         }
 
-        // ---------------- ADD EQUIPMENT (RESTORED) ----------------
+        // ---------------- ADD EQUIPMENT ----------------
 
-        // Inserts new equipment into the database
-        // ---------------- ADD EQUIPMENT (UPDATED WITH LASTUPDATED) ----------------
         public static void AddEquipment(string name, string model, string skill, string location, int id)
         {
             string query =
@@ -185,8 +188,6 @@ namespace ECS_GUI
                 cmd.Parameters.AddWithValue("@Skill", skill);
                 cmd.Parameters.AddWithValue("@Status", "Available");
                 cmd.Parameters.AddWithValue("@Location", location);
-
-                // NEW: timestamp for tracking creation/modification
                 cmd.Parameters.AddWithValue("@LastUpdated", DateTime.Now);
 
                 conn.Open();
@@ -194,26 +195,31 @@ namespace ECS_GUI
             }
         }
 
-        // ---------------- REMOVE EQUIPMENT (RESTORED) ----------------
+        // ---------------- DECOMMISSION EQUIPMENT ----------------
 
-        // Permanently removes equipment from database
         public static void DecommissionEquipment(string equipmentId)
         {
-            string query = "DELETE FROM Equipment WHERE EquipmentID = @ID";
+            string query =
+                @"UPDATE Equipment
+                  SET Status = 'Decommissioned',
+                      AssignedEmployeeID = NULL,
+                      ExpectedReturnDate = NULL,
+                      LastUpdated = @Updated
+                  WHERE EquipmentID = @ID";
 
             using (SqlConnection conn = new SqlConnection(ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddWithValue("@ID", equipmentId);
+                cmd.Parameters.AddWithValue("@Updated", DateTime.Now);
 
                 conn.Open();
                 cmd.ExecuteNonQuery();
             }
         }
 
-        // ---------------- ADD SKILL ----------------
+        // ---------------- SKILLS ----------------
 
-        // Adds a new skill to the Skills table
         public static void AddSkill(string skillName)
         {
             string query = "INSERT INTO Skills (SkillName) VALUES (@SkillName)";
@@ -228,10 +234,20 @@ namespace ECS_GUI
             }
         }
 
-        // Generates next request ID for checkout system
+        // ---------------- REQUEST ID GENERATION ----------------
+
         public static int GenerateNextRequestID()
         {
-            return nextIdSequence++;
+            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            {
+                string query = "SELECT ISNULL(MAX(RequestID), 100) + 1 FROM CheckoutRequests";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    conn.Open();
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
         }
     }
 }
